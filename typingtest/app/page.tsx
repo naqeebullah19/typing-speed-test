@@ -70,8 +70,8 @@ export default function Home() {
   }, []);
 
   // 1. Add 'async' here
-  const finish = useCallback(async () => {
-    stopTimer();
+  const finish = useCallback(async () => {  // <-- ADD 'async' HERE
+    //    stopTimer();
     const elapsed = Math.max(1, Math.round((Date.now() - startTimeRef.current) / 1000));
     const timeTaken = mode === "time" ? timeOption : elapsed;
     const finalWpm = Math.round((correctWordsRef.current / timeTaken) * 60);
@@ -82,8 +82,7 @@ export default function Home() {
     const calculatedAcc = Math.max(0, finalAcc);
 
     // 2. Add 'await' here
-    const statsResult = await saveTestResult(calculatedWpm, calculatedAcc);
-
+    const statsResult = await saveTestResult(calculatedWpm, calculatedAcc); // <-- ADD 'await' HERE
     setResult({
       wpm: calculatedWpm,
       accuracy: calculatedAcc,
