@@ -6,6 +6,6 @@ export default function robots(): MetadataRoute.Robots {
             userAgent: '*',
             allow: '/',
         },
-        sitemap: 'https://your-namecheap-domain.com/sitemap.xml', // Replace with your domain
+        sitemap: 'https://typingspeedtest.live/sitemap.xml', // Replace with your domain
     }
 }
