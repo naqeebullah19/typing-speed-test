@@ -22,7 +22,6 @@ export default function Home() {
   const [wordOption, setWordOption] = useState<WordOption>(25);
   const [appState, setAppState] = useState<AppState>("idle");
 
-  // HYDRATION FIX: Start with empty words to match server-side render
   const [words, setWords] = useState<string[]>([]);
 
   const [wpm, setWpm] = useState(0);
@@ -52,7 +51,6 @@ export default function Home() {
 
   const { streak, saveTestResult, history, leaderboard, userName, updateUserName } = useStats();
 
-  // HYDRATION FIX: Generate initial words ONLY after the component mounts on the client
   useEffect(() => {
     const initialWords = generateWords(WORD_BUFFER);
     setWords(initialWords);
@@ -69,9 +67,9 @@ export default function Home() {
     }
   }, []);
 
-  // 1. Add 'async' here
-  const finish = useCallback(async () => {  // <-- ADD 'async' HERE
-    //    stopTimer();
+  // ---> THE FIX IS RIGHT HERE: async and await added <---
+  const finish = useCallback(async () => {
+    stopTimer();
     const elapsed = Math.max(1, Math.round((Date.now() - startTimeRef.current) / 1000));
     const timeTaken = mode === "time" ? timeOption : elapsed;
     const finalWpm = Math.round((correctWordsRef.current / timeTaken) * 60);
@@ -81,8 +79,8 @@ export default function Home() {
     const calculatedWpm = Math.max(0, finalWpm);
     const calculatedAcc = Math.max(0, finalAcc);
 
-    // 2. Add 'await' here
-    const statsResult = await saveTestResult(calculatedWpm, calculatedAcc); // <-- ADD 'await' HERE
+    const statsResult = await saveTestResult(calculatedWpm, calculatedAcc);
+
     setResult({
       wpm: calculatedWpm,
       accuracy: calculatedAcc,
