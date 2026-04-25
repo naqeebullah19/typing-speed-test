@@ -5,7 +5,7 @@ export function useStats() {
     const [leaderboard, setLeaderboard] = useState<any[]>([]);
     const [userName, setUserName] = useState("Guest");
     const [streak, setStreak] = useState(0);
-    const [history, setHistory] = useState([]); // Powers the graph
+    const [history, setHistory] = useState<any[]>([]);
     const [personalBest, setPersonalBest] = useState(0);
 
     const fetchLeaderboard = async () => {
