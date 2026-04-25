@@ -5,7 +5,18 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Typing Speed Test — Typing Speed Test",
   description: "A minimal, precision typing speed test. Measure your WPM and accuracy with a clean, distraction-free experience.",
-  keywords: ["typing test", "WPM", "words per minute", "typing speed", "accuracy"],
+  keywords: [
+    "typing speed test",
+    "typing test online",
+    "online typing test",
+    "typing test",
+    "typing",
+    "free typing test",
+    "WPM",
+    "words per minute",
+    "typing speed",
+    "accuracy"
+  ],
 };
 
 export default function RootLayout({

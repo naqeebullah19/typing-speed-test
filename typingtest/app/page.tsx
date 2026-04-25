@@ -265,6 +265,28 @@ export default function Home() {
             </div>
           )}
         </div>
+
+        {/* SEO Text Section Added Here */}
+        <section style={{
+          marginTop: "60px",
+          maxWidth: "800px",
+          color: "var(--text-secondary)",
+          fontSize: "14px",
+          lineHeight: "1.6",
+          textAlign: "center",
+          padding: "0 20px"
+        }}>
+          <h2 style={{ color: "var(--text-primary)", fontSize: "18px", marginBottom: "12px" }}>
+            About Our Typing Speed Test
+          </h2>
+          <p style={{ marginBottom: "12px" }}>
+            Looking to improve your keyboard skills? Our free <strong>typing speed test</strong> is designed to accurately measure your <strong>WPM (words per minute)</strong> and accuracy. Whether you are a beginner looking for daily <strong>typing practice</strong> or a professional trying to beat your high score, our tool provides real-time feedback.
+          </p>
+          <p>
+            Select between time-based challenges (15s, 30s, 60s) or word-count modes to customize your <strong>keyboard speed test</strong>. Log in to track your streak, monitor your progress over time, and climb the global leaderboard!
+          </p>
+        </section>
+
       </main>
 
       <footer
