@@ -69,7 +69,8 @@ export default function Home() {
     }
   }, []);
 
-  const finish = useCallback(() => {
+  // 1. Add 'async' here
+  const finish = useCallback(async () => {
     stopTimer();
     const elapsed = Math.max(1, Math.round((Date.now() - startTimeRef.current) / 1000));
     const timeTaken = mode === "time" ? timeOption : elapsed;
@@ -80,7 +81,8 @@ export default function Home() {
     const calculatedWpm = Math.max(0, finalWpm);
     const calculatedAcc = Math.max(0, finalAcc);
 
-    const statsResult = saveTestResult(calculatedWpm, calculatedAcc);
+    // 2. Add 'await' here
+    const statsResult = await saveTestResult(calculatedWpm, calculatedAcc);
 
     setResult({
       wpm: calculatedWpm,
