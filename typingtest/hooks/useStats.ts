@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/app/lib/supabase";
 
 export function useStats() {
-    const [leaderboard, setLeaderboard] = useState([]);
+    const [leaderboard, setLeaderboard] = useState<any[]>([]);
     const [userName, setUserName] = useState("Guest");
     const [streak, setStreak] = useState(0);
     const [history, setHistory] = useState([]); // Powers the graph
