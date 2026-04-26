@@ -7,11 +7,11 @@ type Theme = "light" | "dark";
 
 interface HeaderProps {
   mode: "time" | "words";
-  timeOption: 15 | 30 | 60;
-  wordOption: 10 | 25 | 50;
+  timeOption: 30 | 60 | 180;
+  wordOption: 50 | 100 | 200;
   onModeChange: (mode: "time" | "words") => void;
-  onTimeOptionChange: (t: 15 | 30 | 60) => void;
-  onWordOptionChange: (w: 10 | 25 | 50) => void;
+  onTimeOptionChange: (t: 30 | 60 | 180) => void;
+  onWordOptionChange: (w: 50 | 100 | 200) => void;
   disabled?: boolean;
   streak?: number;
   onLeaderboardClick: () => void;
@@ -153,7 +153,7 @@ export default function Header({
           {/* Sub-options group */}
           <div style={{ display: "flex", alignItems: "center", gap: "2px" }}>
             {mode === "time"
-              ? ([15, 30, 60] as const).map((t) => (
+              ? ([30, 60, 180] as const).map((t) => (
                 <button
                   key={t}
                   onClick={() => !disabled && onTimeOptionChange(t)}
@@ -164,7 +164,7 @@ export default function Header({
                   {t}s
                 </button>
               ))
-              : ([10, 25, 50] as const).map((w) => (
+              : ([50, 100, 200] as const).map((w) => (
                 <button
                   key={w}
                   onClick={() => !disabled && onWordOptionChange(w)}

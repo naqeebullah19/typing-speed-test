@@ -10,16 +10,16 @@ import { generateWords } from "../lib/words";
 import { useStats } from "../hooks/useStats";
 
 type Mode = "time" | "words";
-type TimeOption = 15 | 30 | 60;
-type WordOption = 10 | 25 | 50;
+type TimeOption = 30 | 60 | 180;
+type WordOption = 50 | 100 | 200;
 type AppState = "idle" | "active" | "finished";
 
-const WORD_BUFFER = 150;
+const WORD_BUFFER = 800;
 
 export default function Home() {
   const [mode, setMode] = useState<Mode>("time");
-  const [timeOption, setTimeOption] = useState<TimeOption>(30);
-  const [wordOption, setWordOption] = useState<WordOption>(25);
+  const [timeOption, setTimeOption] = useState<TimeOption>(60);
+  const [wordOption, setWordOption] = useState<WordOption>(50);
   const [appState, setAppState] = useState<AppState>("idle");
 
   const [words, setWords] = useState<string[]>([]);
@@ -283,7 +283,7 @@ export default function Home() {
             Looking to improve your keyboard skills? Our free <strong>typing speed test</strong> is designed to accurately measure your <strong>WPM (words per minute)</strong> and accuracy. Whether you are a beginner looking for daily <strong>typing practice</strong> or a professional trying to beat your high score, our tool provides real-time feedback.
           </p>
           <p>
-            Select between time-based challenges (15s, 30s, 60s) or word-count modes to customize your <strong>keyboard speed test</strong>. Log in to track your streak, monitor your progress over time, and climb the global leaderboard!
+            Select between time-based challenges (30s, 60s, 180s) or word-count modes to customize your <strong>keyboard speed test</strong>. Log in to track your streak, monitor your progress over time, and climb the global leaderboard!
           </p>
         </section>
 
