@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Script from "next/script"; // 1. Import the Next.js Script component
+import Script from "next/script";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -35,7 +35,7 @@ export default function RootLayout({
         />
       </head>
       <body>
-        {/* 2. Replaced <script> with <Script> */}
+        {/* Theme Initializer */}
         <Script id="theme-initializer" strategy="beforeInteractive">
           {`
             try {
@@ -46,6 +46,21 @@ export default function RootLayout({
             } catch(e) {}
           `}
         </Script>
+
+        {/* Google Analytics */}
+        <Script
+          strategy="afterInteractive"
+          src={`https://www.googletagmanager.com/gtag/js?id=G-7YRZPL44TG`}
+        />
+        <Script id="google-analytics" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'G-7YRZPL44TG');
+          `}
+        </Script>
+
         {children}
       </body>
     </html>
