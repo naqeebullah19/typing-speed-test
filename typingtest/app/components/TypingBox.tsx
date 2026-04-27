@@ -157,7 +157,34 @@ const TypingBox = forwardRef<TypingBoxHandle, TypingBoxProps>(function TypingBox
     (e: React.ChangeEvent<HTMLInputElement>) => {
       if (isFinished) return;
       const value = e.target.value;
-      if (value.endsWith(" ")) return;
+
+      // --- ANDROID FIX: Handle Spacebar here ---
+      if (value.endsWith(" ")) {
+        if (currentInput.trim() === "") {
+          setCurrentInput("");
+          return;
+        }
+
+        if (!hasStarted) {
+          setHasStarted(true);
+          onStart();
+        }
+
+        const word = wordData[currentWordIdx];
+        const correct = currentInput === word.chars.map((c) => c.char).join("");
+        onWordComplete(correct);
+
+        if (mode === "words" && totalWords !== undefined && currentWordIdx + 1 >= totalWords) {
+          onFinish();
+          return;
+        }
+
+        setCurrentWordIdx((p) => p + 1);
+        setCurrentInput("");
+        setExtraChars([]);
+        lastInputLength.current = 0;
+        return;
+      }
 
       if (!hasStarted && value.length > 0) {
         setHasStarted(true);
@@ -171,6 +198,7 @@ const TypingBox = forwardRef<TypingBoxHandle, TypingBoxProps>(function TypingBox
       const wordLen = word.chars.length;
 
       if (newLen > lastInputLength.current) {
+        // User typed a character
         const charIdx = newLen - 1;
         const typedChar = value[charIdx];
 
@@ -189,12 +217,26 @@ const TypingBox = forwardRef<TypingBoxHandle, TypingBoxProps>(function TypingBox
             return;
           }
         }
+      } else if (newLen < lastInputLength.current) {
+        // --- ANDROID FIX: Handle Backspace here ---
+        if (extraChars.length > 0) {
+          setExtraChars((p) => p.slice(0, -1));
+        } else {
+          setWordData((prev) => {
+            const updated = prev.map((w) => ({ chars: w.chars.map((c) => ({ ...c })) }));
+            const idx = newLen;
+            if (updated[currentWordIdx]?.chars[idx]) {
+              updated[currentWordIdx].chars[idx].state = "pending";
+            }
+            return updated;
+          });
+        }
       }
 
       setCurrentInput(value);
       lastInputLength.current = newLen;
     },
-    [isFinished, hasStarted, currentWordIdx, wordData, extraChars.length, onStart]
+    [isFinished, hasStarted, currentInput, currentWordIdx, wordData, extraChars.length, mode, totalWords, onStart, onWordComplete, onFinish]
   );
 
   const renderWord = (word: WordData, wordIdx: number) => {
@@ -243,7 +285,7 @@ const TypingBox = forwardRef<TypingBoxHandle, TypingBoxProps>(function TypingBox
                 textDecoration: c.state === "incorrect" ? "underline" : "none",
                 textDecorationColor: "var(--typing-incorrect)",
                 textUnderlineOffset: "6px",
-                textDecorationThickness: "2px", // Stronger underline
+                textDecorationThickness: "2px",
               }}
             >
               {c.char}
@@ -263,8 +305,18 @@ const TypingBox = forwardRef<TypingBoxHandle, TypingBoxProps>(function TypingBox
   return (
     <div style={{ position: "relative", cursor: "text" }} onClick={focusInput}>
       <input
-        ref={inputRef} value={currentInput} onChange={handleChange} onKeyDown={handleKeyDown}
-        autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} disabled={isFinished}
+        ref={inputRef}
+        value={currentInput}
+        onChange={handleChange}
+        onKeyDown={handleKeyDown}
+        // Disabled all predictive text systems forcefully:
+        type="text"
+        autoComplete="off"
+        autoCorrect="off"
+        autoCapitalize="none"
+        spellCheck="false"
+        data-gramm="false"
+        disabled={isFinished}
         style={{ position: "absolute", opacity: 0, pointerEvents: "none", width: 0, height: 0 }}
       />
       <div ref={containerRef} style={{ position: "relative", maxHeight: "210px", overflow: "hidden", userSelect: "none", WebkitUserSelect: "none" }}>
@@ -272,11 +324,11 @@ const TypingBox = forwardRef<TypingBoxHandle, TypingBoxProps>(function TypingBox
           <span
             style={{
               position: "absolute",
-              top: caretPos.top + 1, // slight tweak to align
+              top: caretPos.top + 1,
               left: caretPos.left,
               width: "2px",
-              height: "1.6em", // Taller Caret
-              background: "var(--text-primary)", // Clearer Visibility
+              height: "1.6em",
+              background: "var(--text-primary)",
               borderRadius: "1px",
               animation: "caretBlink 1s infinite",
               transition: "top 90ms cubic-bezier(0.4,0,0.2,1), left 90ms cubic-bezier(0.4,0,0.2,1)",

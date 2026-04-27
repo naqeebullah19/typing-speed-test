@@ -303,7 +303,23 @@ export default function Home() {
           Typing Speed Test
         </span>
         <span style={{ fontSize: "12px", color: "var(--border)" }}>·</span>
-        <span style={{ fontSize: "12px", color: "var(--text-muted)", fontFamily: "'Inter', sans-serif" }}>
+
+        {/* Mobile-Friendly Restart Button */}
+        <button
+          onClick={reset}
+          style={{
+            background: "transparent",
+            border: "none",
+            padding: 0,
+            cursor: "pointer",
+            fontSize: "12px",
+            color: "var(--text-muted)",
+            fontFamily: "'Inter', sans-serif",
+            display: "flex",
+            alignItems: "center",
+          }}
+          aria-label="Restart test"
+        >
           <kbd
             style={{
               padding: "1px 5px",
@@ -312,13 +328,14 @@ export default function Home() {
               borderRadius: "4px",
               fontSize: "11px",
               color: "var(--text-secondary)",
-              marginRight: "5px",
+              marginRight: "6px",
+              cursor: "pointer"
             }}
           >
             Tab
-          </kbd>{" "}
+          </kbd>
           restart
-        </span>
+        </button>
       </footer>
 
       <LeaderboardModal
