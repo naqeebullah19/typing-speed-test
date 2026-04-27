@@ -14,7 +14,7 @@ interface TypingBoxProps {
   isFinished: boolean;
   mode: "time" | "words";
   totalWords?: number;
-  onRestart: () => void; // Added onRestart prop
+  onRestart: () => void;
 }
 
 type CharState = "pending" | "correct" | "incorrect";
@@ -30,8 +30,13 @@ const TypingBox = forwardRef<TypingBoxHandle, TypingBoxProps>(function TypingBox
   const [wordData, setWordData] = useState<WordData[]>(() =>
     words.map((w) => ({ chars: w.split("").map((c) => ({ char: c, state: "pending" as CharState })) }))
   );
+
   const [currentWordIdx, setCurrentWordIdx] = useState(0);
+
+  // THE FIX: We now keep a permanent record of old words to stop Android from panicking
+  const [lockedText, setLockedText] = useState("");
   const [currentInput, setCurrentInput] = useState("");
+
   const [hasStarted, setHasStarted] = useState(false);
   const [caretPos, setCaretPos] = useState({ top: 0, left: 0 });
   const [extraChars, setExtraChars] = useState<{ char: string; key: number }[]>([]);
@@ -48,6 +53,7 @@ const TypingBox = forwardRef<TypingBoxHandle, TypingBoxProps>(function TypingBox
         chars: w.split("").map((c) => ({ char: c, state: "pending" as CharState })),
       })));
       setCurrentWordIdx(0);
+      setLockedText(""); // Reset the Android text stream
       setCurrentInput("");
       setHasStarted(false);
       setExtraChars([]);
@@ -103,28 +109,37 @@ const TypingBox = forwardRef<TypingBoxHandle, TypingBoxProps>(function TypingBox
     }
   }, [currentWordIdx]);
 
-  // Handle Tab interception only. Let onChange handle space and backspace for mobile compatibility.
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (isFinished) return;
       if (e.key === "Tab") {
         e.preventDefault();
-        return;
+        onRestart();
       }
     },
-    [isFinished]
+    [isFinished, onRestart]
   );
 
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       if (isFinished) return;
-      const value = e.target.value;
+      const val = e.target.value;
 
-      // --- Spacebar / Word Completion Handling ---
-      if (value.endsWith(" ")) {
-        if (value.trim() === "" && currentInput === "") {
-          setCurrentInput(""); // Prevent leading spaces
-          return;
+      // HARD WALL: Prevent backspacing into already completed words.
+      if (val.length < lockedText.length) {
+        if (inputRef.current) inputRef.current.value = lockedText + currentInput;
+        return;
+      }
+
+      const newCurrentInput = val.slice(lockedText.length);
+
+      // Handle Spacebar / Word Completion via regex to catch Android weirdness
+      if (/\s$/.test(newCurrentInput)) {
+        const typedWord = newCurrentInput.trim();
+
+        if (typedWord === "" && currentInput === "") {
+          if (inputRef.current) inputRef.current.value = lockedText;
+          return; // Prevent double spaces
         }
 
         if (!hasStarted) {
@@ -133,8 +148,7 @@ const TypingBox = forwardRef<TypingBoxHandle, TypingBoxProps>(function TypingBox
         }
 
         const word = wordData[currentWordIdx];
-        const typedWord = value.trim();
-        const correct = typedWord === word.chars.map((c) => c.char).join("");
+        const correct = typedWord === word.chars.map(c => c.char).join("");
         onWordComplete(correct);
 
         if (mode === "words" && totalWords !== undefined && currentWordIdx + 1 >= totalWords) {
@@ -142,49 +156,48 @@ const TypingBox = forwardRef<TypingBoxHandle, TypingBoxProps>(function TypingBox
           return;
         }
 
-        setCurrentWordIdx((p) => p + 1);
+        // Lock the word in the stream so Android keeps its context
+        setLockedText(lockedText + newCurrentInput);
         setCurrentInput("");
+        setCurrentWordIdx(p => p + 1);
         setExtraChars([]);
         return;
       }
 
-      // --- Regular Typing, Backspace, & Android Autocorrect Handling ---
-      if (!hasStarted && value.length > 0) {
+      // Handle Regular Typing
+      if (!hasStarted && val.length > lockedText.length) {
         setHasStarted(true);
         onStart();
       }
 
+      setCurrentInput(newCurrentInput);
+
+      // Instantly evaluate and color the word
       const word = wordData[currentWordIdx];
-      if (!word) return;
+      if (word) {
+        setWordData(prev => {
+          const updated = prev.map(w => ({ chars: w.chars.map(c => ({ ...c })) }));
+          const currentWordChars = updated[currentWordIdx].chars;
 
-      // Re-evaluate the entire word from scratch (Fixes Android Gboard Bug)
-      setWordData((prev) => {
-        const updated = prev.map((w) => ({ chars: w.chars.map((c) => ({ ...c })) }));
-        const currentWordChars = updated[currentWordIdx].chars;
-
-        // Reset all to pending
-        currentWordChars.forEach((c) => (c.state = "pending"));
-
-        // Mark correct/incorrect based on the entire current input string
-        for (let i = 0; i < value.length; i++) {
-          if (i < currentWordChars.length) {
-            currentWordChars[i].state = value[i] === currentWordChars[i].char ? "correct" : "incorrect";
+          for (let i = 0; i < currentWordChars.length; i++) {
+            if (i < newCurrentInput.length) {
+              currentWordChars[i].state = newCurrentInput[i] === currentWordChars[i].char ? "correct" : "incorrect";
+            } else {
+              currentWordChars[i].state = "pending";
+            }
           }
+          return updated;
+        });
+
+        if (newCurrentInput.length > word.chars.length) {
+          const extraStr = newCurrentInput.slice(word.chars.length).slice(0, 8);
+          setExtraChars(extraStr.split("").map((char, i) => ({ char, key: Date.now() + i })));
+        } else {
+          setExtraChars([]);
         }
-        return updated;
-      });
-
-      // Handle extra characters beyond word length
-      if (value.length > word.chars.length) {
-        const extraStr = value.slice(word.chars.length).slice(0, 8); // Max 8 extra chars
-        setExtraChars(extraStr.split("").map((char, i) => ({ char, key: Date.now() + i })));
-      } else {
-        setExtraChars([]);
       }
-
-      setCurrentInput(value);
     },
-    [isFinished, hasStarted, currentInput, currentWordIdx, wordData, mode, totalWords, onStart, onWordComplete, onFinish]
+    [lockedText, isFinished, hasStarted, currentInput, currentWordIdx, wordData, mode, totalWords, onStart, onWordComplete, onFinish]
   );
 
   const renderWord = (word: WordData, wordIdx: number) => {
@@ -254,10 +267,11 @@ const TypingBox = forwardRef<TypingBoxHandle, TypingBoxProps>(function TypingBox
     <div style={{ position: "relative", cursor: "text" }} onClick={focusInput}>
       <input
         ref={inputRef}
-        value={currentInput}
+        value={lockedText + currentInput} // The core trick that fixes Android
         onChange={handleChange}
         onKeyDown={handleKeyDown}
         type="text"
+        inputMode="text"
         autoComplete="off"
         autoCorrect="off"
         autoCapitalize="none"
@@ -266,6 +280,7 @@ const TypingBox = forwardRef<TypingBoxHandle, TypingBoxProps>(function TypingBox
         disabled={isFinished}
         style={{ position: "absolute", opacity: 0, pointerEvents: "none", width: 0, height: 0 }}
       />
+
       <div ref={containerRef} style={{ position: "relative", maxHeight: "210px", overflow: "hidden", userSelect: "none", WebkitUserSelect: "none" }}>
         {!isFinished && (
           <span
@@ -293,24 +308,30 @@ const TypingBox = forwardRef<TypingBoxHandle, TypingBoxProps>(function TypingBox
       </div>
 
       {!hasStarted && (
-        <div style={{ marginTop: "24px", display: "flex", justifyContent: "center", alignItems: "center", gap: "6px", fontSize: "13px", color: "var(--text-muted)", fontFamily: "'Inter', sans-serif", letterSpacing: "0.1px" }}>
+        <div style={{ marginTop: "24px", display: "flex", justifyContent: "center", alignItems: "center", flexWrap: "wrap", gap: "8px", fontSize: "14px", color: "var(--text-muted)", fontFamily: "'Inter', sans-serif" }}>
           <span>Start typing to begin —</span>
           <button
             onClick={onRestart}
             style={{
-              background: "transparent",
-              border: "none",
-              padding: 0,
+              background: "var(--surface)",
+              border: "1px solid var(--border)",
+              borderRadius: "6px",
+              padding: "6px 12px",
               cursor: "pointer",
               fontSize: "13px",
-              color: "var(--text-muted)",
+              color: "var(--text-primary)",
               fontFamily: "inherit",
               display: "flex",
               alignItems: "center",
+              gap: "6px",
+              boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+              transition: "all 0.1s ease"
             }}
+            onMouseOver={(e) => e.currentTarget.style.background = "var(--border)"}
+            onMouseOut={(e) => e.currentTarget.style.background = "var(--surface)"}
           >
-            <kbd style={{ padding: "2px 6px", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "4px", fontSize: "12px", color: "var(--text-secondary)", marginRight: "4px" }}>Tab</kbd>
-            to retry instantly
+            <kbd style={{ fontSize: "11px", color: "var(--text-secondary)", opacity: 0.8 }}>Tab</kbd>
+            Restart Test
           </button>
         </div>
       )}
