@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useImperativeHandle, useRef, useState, forwardRef } from "react";
+import {
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+  forwardRef,
+} from "react";
 
 export interface TypingBoxHandle {
   reset: (words: string[]) => void;
@@ -23,16 +30,14 @@ interface WordData {
   chars: { char: string; state: CharState }[];
 }
 
-// ─── Android detection (run once, never changes) ──────────────────────────────
-const IS_ANDROID =
-  typeof navigator !== "undefined" && /Android/i.test(navigator.userAgent);
-
 const TypingBox = forwardRef<TypingBoxHandle, TypingBoxProps>(function TypingBox(
   { words, onStart, onWordComplete, onFinish, isFinished, mode, totalWords, onRestart },
   ref
 ) {
   const [wordData, setWordData] = useState<WordData[]>(() =>
-    words.map((w) => ({ chars: w.split("").map((c) => ({ char: c, state: "pending" as CharState })) }))
+    words.map((w) => ({
+      chars: w.split("").map((c) => ({ char: c, state: "pending" as CharState })),
+    }))
   );
 
   const [currentWordIdx, setCurrentWordIdx] = useState(0);
@@ -42,16 +47,16 @@ const TypingBox = forwardRef<TypingBoxHandle, TypingBoxProps>(function TypingBox
   const [caretPos, setCaretPos] = useState({ top: 0, left: 0 });
   const [extraChars, setExtraChars] = useState<{ char: string; key: number }[]>([]);
 
-  // Used to skip the space-handling in onChange when beforeInput already handled it (Android)
-  const spaceHandledByBeforeInput = useRef(false);
-
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const wordRefs = useRef<(HTMLSpanElement | null)[]>([]);
   const charRefs = useRef<(HTMLSpanElement | null)[][]>([]);
   const extraCharRefs = useRef<(HTMLSpanElement | null)[]>([]);
 
-  // Keep a ref of the latest state values so callbacks don't go stale
+  // isComposing: true while Android/CJK IME is mid-composition — don't process then.
+  const isComposing = useRef(false);
+
+  // Snapshot of latest state so callbacks never go stale without re-creating.
   const stateRef = useRef({
     lockedText,
     currentInput,
@@ -64,11 +69,21 @@ const TypingBox = forwardRef<TypingBoxHandle, TypingBoxProps>(function TypingBox
     stateRef.current = { lockedText, currentInput, currentWordIdx, wordData, hasStarted, extraChars };
   });
 
+  // ── Manually sync the uncontrolled input's raw value ───────────────────────
+  // We NEVER set input.value on every keystroke — only when we need to hard-reset
+  // (after completing a word, or on full reset). This keeps Android's IME happy.
+  const syncInput = useCallback((value: string) => {
+    if (inputRef.current) inputRef.current.value = value;
+  }, []);
+
+  // ── Public reset handle ────────────────────────────────────────────────────
   useImperativeHandle(ref, () => ({
     reset(newWords: string[]) {
-      setWordData(newWords.map((w) => ({
-        chars: w.split("").map((c) => ({ char: c, state: "pending" as CharState })),
-      })));
+      setWordData(
+        newWords.map((w) => ({
+          chars: w.split("").map((c) => ({ char: c, state: "pending" as CharState })),
+        }))
+      );
       setCurrentWordIdx(0);
       setLockedText("");
       setCurrentInput("");
@@ -77,13 +92,14 @@ const TypingBox = forwardRef<TypingBoxHandle, TypingBoxProps>(function TypingBox
       charRefs.current = [];
       extraCharRefs.current = [];
       wordRefs.current = [];
+      syncInput(""); // clear uncontrolled input
     },
   }));
 
   const focusInput = useCallback(() => inputRef.current?.focus(), []);
   useEffect(() => { focusInput(); }, [focusInput]);
 
-  // ── Caret position ──────────────────────────────────────────────────────────
+  // ── Caret position ─────────────────────────────────────────────────────────
   useEffect(() => {
     const word = wordData[currentWordIdx];
     if (!word || !containerRef.current) return;
@@ -127,59 +143,7 @@ const TypingBox = forwardRef<TypingBoxHandle, TypingBoxProps>(function TypingBox
     }
   }, [currentWordIdx]);
 
-  // ── Shared word-completion logic ────────────────────────────────────────────
-  // Returns the new lockedText value so callers can sync inputRef immediately.
-  const completeWord = useCallback(
-    (typedWord: string): string | null => {
-      const { lockedText, currentInput, currentWordIdx, wordData, hasStarted } = stateRef.current;
-
-      if (typedWord === "" && currentInput === "") return null; // no-op
-
-      if (!hasStarted) {
-        setHasStarted(true);
-        onStart();
-      }
-
-      const word = wordData[currentWordIdx];
-      const correct = typedWord === word.chars.map((c) => c.char).join("");
-      onWordComplete(correct);
-
-      if (mode === "words" && totalWords !== undefined && currentWordIdx + 1 >= totalWords) {
-        onFinish();
-        return null;
-      }
-
-      const newLocked = lockedText + typedWord + " ";
-      setLockedText(newLocked);
-      setCurrentInput("");
-      setCurrentWordIdx((p) => p + 1);
-      setExtraChars([]);
-      return newLocked;
-    },
-    [onStart, onWordComplete, onFinish, mode, totalWords]
-  );
-
-  // ── onBeforeInput — fires BEFORE autocorrect mutates the value (Android fix) ─
-  const handleBeforeInput = useCallback(
-    (e: React.FormEvent<HTMLInputElement>) => {
-      if (!IS_ANDROID) return; // only needed on Android
-      const nativeEvent = e.nativeEvent as InputEvent;
-
-      // Space key on Android
-      if (nativeEvent.data === " ") {
-        e.preventDefault(); // stop the space from being typed + stops autocorrect
-        spaceHandledByBeforeInput.current = true;
-        const newLocked = completeWord(stateRef.current.currentInput);
-        // Immediately hard-reset the input value so Android's keyboard buffer is clean
-        if (newLocked !== null && inputRef.current) {
-          inputRef.current.value = newLocked;
-        }
-      }
-    },
-    [completeWord]
-  );
-
-  // ── onKeyDown — Tab to restart (works on desktop/iOS; on Android key = 'Unidentified') ─
+  // ── Tab → restart ──────────────────────────────────────────────────────────
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (isFinished) return;
@@ -191,36 +155,55 @@ const TypingBox = forwardRef<TypingBoxHandle, TypingBoxProps>(function TypingBox
     [isFinished, onRestart]
   );
 
-  // ── onChange ────────────────────────────────────────────────────────────────
-  const handleChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
+  // ── IME composition guards ─────────────────────────────────────────────────
+  // Without these, CJK / Android swipe keyboards fire onChange mid-composition
+  // and we'd incorrectly process partial syllables as real characters.
+  const handleCompositionStart = useCallback(() => {
+    isComposing.current = true;
+  }, []);
+
+  const handleCompositionEnd = useCallback(
+    (e: React.CompositionEvent<HTMLInputElement>) => {
+      isComposing.current = false;
+      // Fire onChange logic manually with the now-finalised value.
+      // We create a synthetic-ish event object that handleChange expects.
+      const syntheticEvent = {
+        target: e.currentTarget,
+      } as React.ChangeEvent<HTMLInputElement>;
+      handleChangeCore(syntheticEvent.target.value);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
+
+  // ── Core input processing (extracted so compositionEnd can call it too) ────
+  const handleChangeCore = useCallback(
+    (rawValue: string) => {
       if (isFinished) return;
 
-      // Android: space was already processed in onBeforeInput — skip
-      if (spaceHandledByBeforeInput.current) {
-        spaceHandledByBeforeInput.current = false;
+      const { lockedText, currentInput, currentWordIdx, wordData, hasStarted } =
+        stateRef.current;
+
+      // ── Guard: don't allow backspacing into completed words ────────────────
+      if (rawValue.length < lockedText.length) {
+        // Restore the uncontrolled input to where we left off
+        syncInput(lockedText + currentInput);
         return;
       }
 
-      const val = e.target.value;
+      const typed = rawValue.slice(lockedText.length);
 
-      // HARD WALL: Prevent backspacing into already completed words.
-      if (val.length < lockedText.length) {
-        if (inputRef.current) inputRef.current.value = lockedText + currentInput;
-        return;
-      }
+      // ── Space / word completion ────────────────────────────────────────────
+      // indexOf(' ') catches spaces wherever Android decides to insert them
+      // (beginning, middle, or end of the typed chunk).
+      const spaceIdx = typed.indexOf(" ");
+      if (spaceIdx !== -1) {
+        const typedWord = typed.slice(0, spaceIdx);
 
-      const newCurrentInput = val.slice(lockedText.length);
-
-      // ── Space detection ──────────────────────────────────────────────────
-      // Use /\s/ (not /\s$/) so we catch cases where Android inserts the space
-      // mid-string due to autocorrect rewriting the word before appending a space.
-      if (/\s/.test(newCurrentInput)) {
-        const typedWord = newCurrentInput.split(/\s/)[0]; // text before the first space
-
+        // Ignore a leading space with nothing typed yet
         if (typedWord === "" && currentInput === "") {
-          if (inputRef.current) inputRef.current.value = lockedText;
-          return; // Prevent double spaces
+          syncInput(lockedText);
+          return;
         }
 
         if (!hasStarted) {
@@ -238,55 +221,63 @@ const TypingBox = forwardRef<TypingBoxHandle, TypingBoxProps>(function TypingBox
         }
 
         const newLocked = lockedText + typedWord + " ";
+
+        // Hard-reset the uncontrolled input so Android's keyboard buffer starts
+        // fresh for the next word — this is the key fix for the "random keywords" bug.
+        syncInput(newLocked);
+
         setLockedText(newLocked);
-        // Explicitly reset value — critical on Android to flush keyboard buffer
-        if (inputRef.current) inputRef.current.value = newLocked;
         setCurrentInput("");
         setCurrentWordIdx((p) => p + 1);
         setExtraChars([]);
         return;
       }
 
-      // ── Regular character typing ─────────────────────────────────────────
-      if (!hasStarted && val.length > lockedText.length) {
+      // ── Regular character typing ───────────────────────────────────────────
+      if (!hasStarted && typed.length > 0) {
         setHasStarted(true);
         onStart();
       }
 
-      setCurrentInput(newCurrentInput);
+      setCurrentInput(typed);
 
       const word = wordData[currentWordIdx];
       if (word) {
         setWordData((prev) => {
           const updated = prev.map((w) => ({ chars: w.chars.map((c) => ({ ...c })) }));
-          const currentWordChars = updated[currentWordIdx].chars;
-          for (let i = 0; i < currentWordChars.length; i++) {
-            if (i < newCurrentInput.length) {
-              currentWordChars[i].state =
-                newCurrentInput[i] === currentWordChars[i].char ? "correct" : "incorrect";
+          const chars = updated[currentWordIdx].chars;
+          for (let i = 0; i < chars.length; i++) {
+            if (i < typed.length) {
+              chars[i].state = typed[i] === chars[i].char ? "correct" : "incorrect";
             } else {
-              currentWordChars[i].state = "pending";
+              chars[i].state = "pending";
             }
           }
           return updated;
         });
 
-        if (newCurrentInput.length > word.chars.length) {
-          const extraStr = newCurrentInput.slice(word.chars.length).slice(0, 8);
+        if (typed.length > word.chars.length) {
+          const extraStr = typed.slice(word.chars.length).slice(0, 8);
           setExtraChars(extraStr.split("").map((char, i) => ({ char, key: Date.now() + i })));
         } else {
           setExtraChars([]);
         }
       }
     },
-    [
-      lockedText, isFinished, hasStarted, currentInput,
-      currentWordIdx, wordData, mode, totalWords,
-      onStart, onWordComplete, onFinish,
-    ]
+    [isFinished, onStart, onWordComplete, onFinish, mode, totalWords, syncInput]
   );
 
-  // ── Render helpers ──────────────────────────────────────────────────────────
+  // ── onChange ───────────────────────────────────────────────────────────────
+  const handleChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      // Skip while IME is composing (Android swipe / CJK keyboards)
+      if (isComposing.current) return;
+      handleChangeCore(e.target.value);
+    },
+    [handleChangeCore]
+  );
+
+  // ── Render helpers ─────────────────────────────────────────────────────────
   const renderWord = (word: WordData, wordIdx: number) => {
     const isCurrent = wordIdx === currentWordIdx;
     const isPast = wordIdx < currentWordIdx;
@@ -364,18 +355,26 @@ const TypingBox = forwardRef<TypingBoxHandle, TypingBoxProps>(function TypingBox
 
   return (
     <div style={{ position: "relative", cursor: "text" }} onClick={focusInput}>
+      {/*
+        UNCONTROLLED input — no `value` prop.
+        This is the core Android fix: a controlled input (`value={...}`) causes
+        React to re-set the DOM value on every render, which resets the Android
+        IME composition buffer and produces garbled/random output on space.
+        Instead we only write to inputRef.current.value when strictly necessary
+        (word completion, full reset), leaving the IME completely alone otherwise.
+      */}
       <input
         ref={inputRef}
-        value={lockedText + currentInput}
         onChange={handleChange}
         onKeyDown={handleKeyDown}
-        onBeforeInput={handleBeforeInput}  /* ← Android space interception */
+        onCompositionStart={handleCompositionStart}
+        onCompositionEnd={handleCompositionEnd}
         type="text"
         inputMode="text"
         autoComplete="off"
         autoCorrect="off"
         autoCapitalize="none"
-        spellCheck="false"
+        spellCheck={false}
         data-gramm="false"
         disabled={isFinished}
         style={{ position: "absolute", opacity: 0, pointerEvents: "none", width: 0, height: 0 }}
@@ -409,6 +408,7 @@ const TypingBox = forwardRef<TypingBoxHandle, TypingBoxProps>(function TypingBox
             }}
           />
         )}
+
         <div
           style={{
             position: "absolute",
