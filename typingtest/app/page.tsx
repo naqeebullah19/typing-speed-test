@@ -67,7 +67,6 @@ export default function Home() {
     }
   }, []);
 
-  // ---> THE FIX IS RIGHT HERE: async and await added <---
   const finish = useCallback(async () => {
     stopTimer();
     const elapsed = Math.max(1, Math.round((Date.now() - startTimeRef.current) / 1000));
@@ -242,6 +241,7 @@ export default function Home() {
                     isFinished={isFinished}
                     mode={mode}
                     totalWords={mode === "words" ? wordOption : undefined}
+                    onRestart={reset}
                   />
                 )}
               </div>
@@ -266,7 +266,6 @@ export default function Home() {
           )}
         </div>
 
-        {/* SEO Text Section Added Here */}
         <section style={{
           marginTop: "60px",
           maxWidth: "800px",
@@ -304,7 +303,6 @@ export default function Home() {
         </span>
         <span style={{ fontSize: "12px", color: "var(--border)" }}>·</span>
 
-        {/* Mobile-Friendly Restart Button */}
         <button
           onClick={reset}
           style={{

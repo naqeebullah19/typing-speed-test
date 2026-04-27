@@ -14,6 +14,7 @@ interface TypingBoxProps {
   isFinished: boolean;
   mode: "time" | "words";
   totalWords?: number;
+  onRestart: () => void; // Added onRestart prop
 }
 
 type CharState = "pending" | "correct" | "incorrect";
@@ -23,7 +24,7 @@ interface WordData {
 }
 
 const TypingBox = forwardRef<TypingBoxHandle, TypingBoxProps>(function TypingBox(
-  { words, onStart, onWordComplete, onFinish, isFinished, mode, totalWords },
+  { words, onStart, onWordComplete, onFinish, isFinished, mode, totalWords, onRestart },
   ref
 ) {
   const [wordData, setWordData] = useState<WordData[]>(() =>
@@ -40,7 +41,6 @@ const TypingBox = forwardRef<TypingBoxHandle, TypingBoxProps>(function TypingBox
   const wordRefs = useRef<(HTMLSpanElement | null)[]>([]);
   const charRefs = useRef<(HTMLSpanElement | null)[][]>([]);
   const extraCharRefs = useRef<(HTMLSpanElement | null)[]>([]);
-  const lastInputLength = useRef(0);
 
   useImperativeHandle(ref, () => ({
     reset(newWords: string[]) {
@@ -51,7 +51,6 @@ const TypingBox = forwardRef<TypingBoxHandle, TypingBoxProps>(function TypingBox
       setCurrentInput("");
       setHasStarted(false);
       setExtraChars([]);
-      lastInputLength.current = 0;
       charRefs.current = [];
       extraCharRefs.current = [];
       wordRefs.current = [];
@@ -104,53 +103,16 @@ const TypingBox = forwardRef<TypingBoxHandle, TypingBoxProps>(function TypingBox
     }
   }, [currentWordIdx]);
 
+  // Handle Tab interception only. Let onChange handle space and backspace for mobile compatibility.
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (isFinished) return;
-      if (e.key === "Tab") { e.preventDefault(); return; }
-
-      if (e.key === " ") {
+      if (e.key === "Tab") {
         e.preventDefault();
-        if (currentInput.trim() === "") return;
-
-        const word = wordData[currentWordIdx];
-        const correct = currentInput === word.chars.map((c) => c.char).join("");
-        onWordComplete(correct);
-
-        if (mode === "words" && totalWords !== undefined && currentWordIdx + 1 >= totalWords) {
-          onFinish();
-          return;
-        }
-
-        setCurrentWordIdx((p) => p + 1);
-        setCurrentInput("");
-        setExtraChars([]);
-        lastInputLength.current = 0;
         return;
       }
-
-      if (e.key === "Backspace") {
-        if (currentInput.length === 0) return;
-        const newInput = currentInput.slice(0, -1);
-        setCurrentInput(newInput);
-        lastInputLength.current = newInput.length;
-
-        if (extraChars.length > 0) {
-          setExtraChars((p) => p.slice(0, -1));
-          return;
-        }
-
-        setWordData((prev) => {
-          const updated = prev.map((w) => ({ chars: w.chars.map((c) => ({ ...c })) }));
-          const idx = newInput.length;
-          if (updated[currentWordIdx]?.chars[idx]) {
-            updated[currentWordIdx].chars[idx].state = "pending";
-          }
-          return updated;
-        });
-      }
     },
-    [isFinished, currentInput, currentWordIdx, wordData, extraChars, mode, totalWords, onWordComplete, onFinish]
+    [isFinished]
   );
 
   const handleChange = useCallback(
@@ -158,10 +120,10 @@ const TypingBox = forwardRef<TypingBoxHandle, TypingBoxProps>(function TypingBox
       if (isFinished) return;
       const value = e.target.value;
 
-      // --- ANDROID FIX: Handle Spacebar here ---
+      // --- Spacebar / Word Completion Handling ---
       if (value.endsWith(" ")) {
-        if (currentInput.trim() === "") {
-          setCurrentInput("");
+        if (value.trim() === "" && currentInput === "") {
+          setCurrentInput(""); // Prevent leading spaces
           return;
         }
 
@@ -171,7 +133,8 @@ const TypingBox = forwardRef<TypingBoxHandle, TypingBoxProps>(function TypingBox
         }
 
         const word = wordData[currentWordIdx];
-        const correct = currentInput === word.chars.map((c) => c.char).join("");
+        const typedWord = value.trim();
+        const correct = typedWord === word.chars.map((c) => c.char).join("");
         onWordComplete(correct);
 
         if (mode === "words" && totalWords !== undefined && currentWordIdx + 1 >= totalWords) {
@@ -182,10 +145,10 @@ const TypingBox = forwardRef<TypingBoxHandle, TypingBoxProps>(function TypingBox
         setCurrentWordIdx((p) => p + 1);
         setCurrentInput("");
         setExtraChars([]);
-        lastInputLength.current = 0;
         return;
       }
 
+      // --- Regular Typing, Backspace, & Android Autocorrect Handling ---
       if (!hasStarted && value.length > 0) {
         setHasStarted(true);
         onStart();
@@ -194,49 +157,34 @@ const TypingBox = forwardRef<TypingBoxHandle, TypingBoxProps>(function TypingBox
       const word = wordData[currentWordIdx];
       if (!word) return;
 
-      const newLen = value.length;
-      const wordLen = word.chars.length;
+      // Re-evaluate the entire word from scratch (Fixes Android Gboard Bug)
+      setWordData((prev) => {
+        const updated = prev.map((w) => ({ chars: w.chars.map((c) => ({ ...c })) }));
+        const currentWordChars = updated[currentWordIdx].chars;
 
-      if (newLen > lastInputLength.current) {
-        // User typed a character
-        const charIdx = newLen - 1;
-        const typedChar = value[charIdx];
+        // Reset all to pending
+        currentWordChars.forEach((c) => (c.state = "pending"));
 
-        if (charIdx < wordLen) {
-          const correct = typedChar === word.chars[charIdx].char;
-          setWordData((prev) => {
-            const updated = prev.map((w) => ({ chars: w.chars.map((c) => ({ ...c })) }));
-            updated[currentWordIdx].chars[charIdx].state = correct ? "correct" : "incorrect";
-            return updated;
-          });
-        } else {
-          if (extraChars.length < 8) {
-            setExtraChars((p) => [...p, { char: typedChar, key: Date.now() }]);
-          } else {
-            e.target.value = value.slice(0, -1);
-            return;
+        // Mark correct/incorrect based on the entire current input string
+        for (let i = 0; i < value.length; i++) {
+          if (i < currentWordChars.length) {
+            currentWordChars[i].state = value[i] === currentWordChars[i].char ? "correct" : "incorrect";
           }
         }
-      } else if (newLen < lastInputLength.current) {
-        // --- ANDROID FIX: Handle Backspace here ---
-        if (extraChars.length > 0) {
-          setExtraChars((p) => p.slice(0, -1));
-        } else {
-          setWordData((prev) => {
-            const updated = prev.map((w) => ({ chars: w.chars.map((c) => ({ ...c })) }));
-            const idx = newLen;
-            if (updated[currentWordIdx]?.chars[idx]) {
-              updated[currentWordIdx].chars[idx].state = "pending";
-            }
-            return updated;
-          });
-        }
+        return updated;
+      });
+
+      // Handle extra characters beyond word length
+      if (value.length > word.chars.length) {
+        const extraStr = value.slice(word.chars.length).slice(0, 8); // Max 8 extra chars
+        setExtraChars(extraStr.split("").map((char, i) => ({ char, key: Date.now() + i })));
+      } else {
+        setExtraChars([]);
       }
 
       setCurrentInput(value);
-      lastInputLength.current = newLen;
     },
-    [isFinished, hasStarted, currentInput, currentWordIdx, wordData, extraChars.length, mode, totalWords, onStart, onWordComplete, onFinish]
+    [isFinished, hasStarted, currentInput, currentWordIdx, wordData, mode, totalWords, onStart, onWordComplete, onFinish]
   );
 
   const renderWord = (word: WordData, wordIdx: number) => {
@@ -309,7 +257,6 @@ const TypingBox = forwardRef<TypingBoxHandle, TypingBoxProps>(function TypingBox
         value={currentInput}
         onChange={handleChange}
         onKeyDown={handleKeyDown}
-        // Disabled all predictive text systems forcefully:
         type="text"
         autoComplete="off"
         autoCorrect="off"
@@ -346,9 +293,26 @@ const TypingBox = forwardRef<TypingBoxHandle, TypingBoxProps>(function TypingBox
       </div>
 
       {!hasStarted && (
-        <p style={{ marginTop: "24px", textAlign: "center", fontSize: "13px", color: "var(--text-muted)", fontFamily: "'Inter', sans-serif", letterSpacing: "0.1px" }}>
-          Start typing to begin — <kbd style={{ padding: "2px 6px", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "4px", fontSize: "12px", color: "var(--text-secondary)", fontFamily: "inherit" }}>Tab</kbd> to retry instantly
-        </p>
+        <div style={{ marginTop: "24px", display: "flex", justifyContent: "center", alignItems: "center", gap: "6px", fontSize: "13px", color: "var(--text-muted)", fontFamily: "'Inter', sans-serif", letterSpacing: "0.1px" }}>
+          <span>Start typing to begin —</span>
+          <button
+            onClick={onRestart}
+            style={{
+              background: "transparent",
+              border: "none",
+              padding: 0,
+              cursor: "pointer",
+              fontSize: "13px",
+              color: "var(--text-muted)",
+              fontFamily: "inherit",
+              display: "flex",
+              alignItems: "center",
+            }}
+          >
+            <kbd style={{ padding: "2px 6px", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "4px", fontSize: "12px", color: "var(--text-secondary)", marginRight: "4px" }}>Tab</kbd>
+            to retry instantly
+          </button>
+        </div>
       )}
     </div>
   );
