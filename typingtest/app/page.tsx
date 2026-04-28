@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Script from "next/script";
 import TypingTest from "./components/TypingBox"; // your existing tool component
 
-// ─── Page-level metadata (overrides layout defaults for this route) ───────────
+// ─── Page-level metadata (overrides layout defaults for this route) ─
 export const metadata: Metadata = {
   title: "Free Typing Speed Test — Check Your WPM Online",
   description:
@@ -169,11 +169,11 @@ const breadcrumbSchema = {
   ],
 };
 
-// ─── Page Component ───────────────────────────────────────────────────────────
+// ─── Page Component ────────
 export default function HomePage() {
   return (
     <>
-      {/* ── Page-level structured data ──────────────────────────────────── */}
+      {/* ── Page-level structured data ──────*/}
       <Script
         id="faq-schema"
         type="application/ld+json"
@@ -191,28 +191,28 @@ export default function HomePage() {
       />
 
       {/*
-       * ─────────────────────────────────────────────────────────────────────
+       * ───
        * IMPORTANT: Keep your existing page layout/wrapper exactly as-is.
        * Slot in the sections below AFTER your existing tool UI.
        * The tool renders at the top; the SEO content lives below it.
        * Google reads all of it. Users see the tool first.
-       * ─────────────────────────────────────────────────────────────────────
+       * ──
        */}
 
       <main>
-        {/* ── 1. TOOL SECTION — your existing typing test component ────── */}
+        {/* ── 1. TOOL SECTION — your existing typing test component ─── */}
         {/*
          * Replace <TypingTest /> with whatever your actual tool component
          * is called. Do NOT change the tool UI at all — only add what's below.
          */}
         <section aria-label="Typing speed test tool">
-          <TypingTest />
+          Typing Speed Test
         </section>
 
-        {/* ── 2. SEO CONTENT — renders below the tool ─────────────────── */}
+        {/* ── 2. SEO CONTENT — renders below the tool ─ */}
         <div className="seo-content">
 
-          {/* ── H1 (one per page, above the fold in SSR HTML) ─────────── */}
+          {/* ── H1 (one per page, above the fold in SSR HTML) ── */}
           {/*
            * NOTE: Move your H1 HERE if it is currently inside a React
            * client component. Google needs to see it in the initial HTML.
@@ -223,7 +223,7 @@ export default function HomePage() {
             Free Typing Speed Test — Measure Your WPM and Accuracy Online
           </h1>
 
-          {/* ── ABOUT SECTION ────────────────────────────────────────── */}
+          {/* ── ABOUT SECTION ── */}
           <section aria-labelledby="about-heading">
             <h2 id="about-heading">What Is a Typing Speed Test?</h2>
             <p>
@@ -245,7 +245,7 @@ export default function HomePage() {
             </p>
           </section>
 
-          {/* ── HOW IT WORKS ─────────────────────────────────────────── */}
+          {/* ── HOW IT WORKS ───── */}
           <section aria-labelledby="how-it-works-heading">
             <h2 id="how-it-works-heading">How the Typing Test Works</h2>
             <p>
@@ -296,7 +296,7 @@ export default function HomePage() {
             </p>
           </section>
 
-          {/* ── BENCHMARKS SECTION ───────────────────────────────────── */}
+          {/* ── BENCHMARKS SECTION ─ */}
           <section aria-labelledby="benchmarks-heading">
             <h2 id="benchmarks-heading">Average Typing Speed: How Do You Compare?</h2>
             <p>
@@ -391,7 +391,7 @@ export default function HomePage() {
             </ul>
           </section>
 
-          {/* ── HOW TO IMPROVE ───────────────────────────────────────── */}
+          {/* ── HOW TO IMPROVE ─ */}
           <section aria-labelledby="improve-heading">
             <h2 id="improve-heading">How to Improve Your Typing Speed</h2>
             <p>
@@ -453,7 +453,7 @@ export default function HomePage() {
             </p>
           </section>
 
-          {/* ── FEATURES SECTION ─────────────────────────────────────── */}
+          {/* ── FEATURES SECTION ─ */}
           <section aria-labelledby="features-heading">
             <h2 id="features-heading">Why Use TypingSpeedTest.live?</h2>
             <p>
@@ -513,7 +513,7 @@ export default function HomePage() {
             </p>
           </section>
 
-          {/* ── FAQ SECTION ──────────────────────────────────────────── */}
+          {/* ── FAQ SECTION ─ */}
           {/*
            * The <details>/<summary> elements are accessible and semantic.
            * The FAQ content here MUST match the faqSchema JSON-LD above.
@@ -641,7 +641,7 @@ export default function HomePage() {
             </details>
           </section>
 
-          {/* ── RELATED LINKS / INTERNAL LINKING ─────────────────────── */}
+          {/* ── RELATED LINKS / INTERNAL LINKING ── */}
           {/*
            * Once you build out additional pages, uncomment and fill in
            * these internal links. Internal links with keyword-rich anchor
