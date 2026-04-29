@@ -3,20 +3,34 @@ import Script from "next/script";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Typing Speed Test — Typing Speed Test",
-  description: "A minimal, precision typing speed test. Measure your WPM and accuracy with a clean, distraction-free experience.",
+  title: "Free Typing Speed Test — Check Your WPM Online",
+  description: "Take a free typing speed test and instantly see your WPM (words per minute) and accuracy score. No sign-up needed. Choose 30-second, 1-minute or 3-minute modes, track your daily streak, and compete on the global leaderboard.",
   keywords: [
     "typing speed test",
-    "typing test online",
-    "online typing test",
-    "typing test",
-    "typing",
+    "wpm test",
     "free typing test",
-    "WPM",
-    "words per minute",
-    "typing speed",
-    "accuracy"
+    "typing test online",
+    "words per minute test",
+    "keyboard speed test",
+    "typing accuracy test",
+    "touch typing test",
+    "wpm checker"
   ],
+  openGraph: {
+    title: "Free Typing Speed Test — Check Your WPM Online",
+    description: "Measure your typing speed in WPM and accuracy instantly. Free, no sign-up. 30s, 1-minute and 3-minute modes with global leaderboard.",
+    url: "https://typingspeedtest.live",
+    siteName: "Typing Speed Test",
+    images: [
+      {
+        url: "/opengraph-image.png",
+        width: 1200,
+        height: 630,
+      },
+    ],
+    locale: "en_US",
+    type: "website",
+  },
 };
 
 export default function RootLayout({

@@ -194,8 +194,8 @@ export default function Home() {
         transition: "background var(--transition-slow)",
       }}
     >
-      {/* Hidden H1 for SEO */}
-      <h1 style={{ display: "none" }}>Free Online Typing Speed Test</h1>
+      {/* Hidden H1 for SEO without breaking UI */}
+      <h1 style={{ display: "none" }}>Free Typing Speed Test — Measure Your WPM and Accuracy Online</h1>
 
       <Header
         mode={mode}
@@ -269,27 +269,64 @@ export default function Home() {
           )}
         </div>
 
-        {/* SEO Content Section - Safe format without unicode lines */}
+        {/* SEO Content Section - Formatted for readability */}
         <section style={{
-          marginTop: "60px",
-          maxWidth: "800px",
+          marginTop: "80px",
+          maxWidth: "720px",
           color: "var(--text-secondary)",
           fontSize: "14px",
           lineHeight: "1.6",
-          textAlign: "center",
+          textAlign: "left",
           padding: "0 20px"
         }}>
-          <h2 style={{ color: "var(--text-primary)", fontSize: "18px", marginBottom: "12px" }}>
-            About Our Typing Speed Test
-          </h2>
-          <p style={{ marginBottom: "12px" }}>
-            Looking to improve your keyboard skills? Our free <strong>typing speed test</strong> is designed to accurately measure your <strong>WPM (words per minute)</strong> and accuracy. Whether you are a beginner looking for daily <strong>typing practice</strong> or a professional trying to beat your high score, our tool provides real-time feedback.
-          </p>
-          <p>
-            Select between time-based challenges (30s, 60s, 180s) or word-count modes to customize your <strong>keyboard speed test</strong>. Log in to track your streak, monitor your progress over time, and climb the global leaderboard!
-          </p>
-        </section>
 
+          <h2 style={{ color: "var(--text-primary)", fontSize: "18px", marginBottom: "12px" }}>
+            What Is a Typing Speed Test?
+          </h2>
+          <p style={{ marginBottom: "24px" }}>
+            A <strong>typing speed test</strong> measures how many <strong>words per minute (WPM)</strong> you can type accurately on a keyboard. Our free typing test gives you an instant WPM score and <strong>accuracy percentage</strong> the moment you finish, with zero registration required. We calculate your <strong>net WPM</strong> — the industry-standard metric that accounts for uncorrected errors, giving you an honest reflection of your real-world typing performance.
+          </p>
+
+          <h2 style={{ color: "var(--text-primary)", fontSize: "18px", marginBottom: "12px" }}>
+            How to Improve Your Typing Speed
+          </h2>
+          <ul style={{ marginBottom: "24px", paddingLeft: "20px" }}>
+            <li style={{ marginBottom: "8px" }}><strong>Learn the Home Row:</strong> Rest your fingers on ASDF and JKL;. Mastering this placement is the foundation of touch typing.</li>
+            <li style={{ marginBottom: "8px" }}><strong>Stop Looking at the Keyboard:</strong> Force your eyes to stay on the screen to build muscle memory.</li>
+            <li style={{ marginBottom: "8px" }}><strong>Fix Accuracy Before Chasing Speed:</strong> Aim for 95% accuracy or above. Speed follows accuracy naturally.</li>
+            <li><strong>Practice Daily:</strong> 15 minutes every day beats two hours once a week. Track your daily streak to build a consistent habit.</li>
+          </ul>
+
+          <h2 style={{ color: "var(--text-primary)", fontSize: "18px", marginBottom: "16px" }}>
+            Frequently Asked Questions
+          </h2>
+
+          <details style={{ marginBottom: "12px", cursor: "pointer" }}>
+            <summary style={{ color: "var(--text-primary)", fontWeight: 500, marginBottom: "4px" }}>What is a good typing speed in WPM?</summary>
+            <p style={{ marginTop: "8px", paddingLeft: "16px", borderLeft: "2px solid var(--border)" }}>The average adult types around 40 WPM. A good typing speed is generally considered <strong>60 WPM or above</strong>. Professional typists typically reach 65–75 WPM, while advanced typists exceed 100 WPM.</p>
+          </details>
+
+          <details style={{ marginBottom: "12px", cursor: "pointer" }}>
+            <summary style={{ color: "var(--text-primary)", fontWeight: 500, marginBottom: "4px" }}>How is WPM calculated?</summary>
+            <p style={{ marginTop: "8px", paddingLeft: "16px", borderLeft: "2px solid var(--border)" }}>WPM is calculated by dividing the total number of correctly typed characters by 5 (the standard "word" length), then dividing by the minutes elapsed. Our test measures <strong>net WPM</strong>, meaning uncorrected errors are deducted from your score.</p>
+          </details>
+
+          <details style={{ marginBottom: "12px", cursor: "pointer" }}>
+            <summary style={{ color: "var(--text-primary)", fontWeight: 500, marginBottom: "4px" }}>What is the difference between net WPM and gross WPM?</summary>
+            <p style={{ marginTop: "8px", paddingLeft: "16px", borderLeft: "2px solid var(--border)" }}><strong>Gross WPM</strong> is your raw speed including errors. <strong>Net WPM</strong> subtracts those errors to measure your usable typing speed. Most employers use net WPM.</p>
+          </details>
+
+          <details style={{ marginBottom: "12px", cursor: "pointer" }}>
+            <summary style={{ color: "var(--text-primary)", fontWeight: 500, marginBottom: "4px" }}>How long should I practice daily?</summary>
+            <p style={{ marginTop: "8px", paddingLeft: "16px", borderLeft: "2px solid var(--border)" }}><strong>15–20 minutes of focused daily practice</strong> is optimal. Consistent daily practice builds muscle memory faster than sporadic marathon sessions.</p>
+          </details>
+
+          <details style={{ marginBottom: "12px", cursor: "pointer" }}>
+            <summary style={{ color: "var(--text-primary)", fontWeight: 500, marginBottom: "4px" }}>Is this typing test free with no sign-up?</summary>
+            <p style={{ marginTop: "8px", paddingLeft: "16px", borderLeft: "2px solid var(--border)" }}>Yes! TypingSpeedTest.live is completely free and requires no account. You can take unlimited tests instantly. Creating a free account is optional but unlocks streak tracking and the global leaderboard.</p>
+          </details>
+
+        </section>
       </main>
 
       <footer
