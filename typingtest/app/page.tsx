@@ -10,16 +10,16 @@ import { generateWords } from "../lib/words";
 import { useStats } from "../hooks/useStats";
 
 type Mode = "time" | "words";
-type TimeOption = 30 | 60 | 180;
-type WordOption = 50 | 100 | 200;
+type TimeOption = number; // Unlocked from strict limits
+type WordOption = number; // Unlocked from strict limits
 type AppState = "idle" | "active" | "finished";
 
 const WORD_BUFFER = 800;
 
 export default function Home() {
   const [mode, setMode] = useState<Mode>("time");
-  const [timeOption, setTimeOption] = useState<TimeOption>(60);
-  const [wordOption, setWordOption] = useState<WordOption>(50);
+  const [timeOption, setTimeOption] = useState<TimeOption>(30); // Defaulting to 30
+  const [wordOption, setWordOption] = useState<WordOption>(30); // Defaulting to 30
   const [appState, setAppState] = useState<AppState>("idle");
 
   const [words, setWords] = useState<string[]>([]);
@@ -141,6 +141,7 @@ export default function Home() {
     setTimeLeft(timeOption);
     setResult(null);
 
+    // Give a buffer of words (+30) for word-mode to prevent running out
     const newWords = mode === "words" ? generateWords(wordOption + 30) : generateWords(WORD_BUFFER);
     setWords(newWords);
     typingBoxRef.current?.reset(newWords);
@@ -197,17 +198,24 @@ export default function Home() {
       {/* Hidden H1 for SEO without breaking UI */}
       <h1 style={{ display: "none" }}>Free Typing Speed Test — Measure Your WPM and Accuracy Online</h1>
 
-      <Header
-        mode={mode}
-        timeOption={timeOption}
-        wordOption={wordOption}
-        onModeChange={handleModeChange}
-        onTimeOptionChange={handleTimeOptionChange}
-        onWordOptionChange={handleWordOptionChange}
-        disabled={isActive}
-        streak={streak}
-        onLeaderboardClick={() => setIsLeaderboardOpen(true)}
-      />
+      {/* FOCUS MODE: Header smoothly fades out and disables interactions when actively typing */}
+      <div style={{
+        opacity: isActive ? 0 : 1,
+        transition: "opacity 0.4s ease",
+        pointerEvents: isActive ? "none" : "auto"
+      }}>
+        <Header
+          mode={mode}
+          timeOption={timeOption}
+          wordOption={wordOption}
+          onModeChange={handleModeChange}
+          onTimeOptionChange={handleTimeOptionChange}
+          onWordOptionChange={handleWordOptionChange}
+          disabled={isActive}
+          streak={streak}
+          onLeaderboardClick={() => setIsLeaderboardOpen(true)}
+        />
+      </div>
 
       <main
         className="page-fade-in"
@@ -233,7 +241,8 @@ export default function Home() {
                 isActive={isActive}
               />
 
-              <div style={{ marginTop: "24px", maxWidth: "720px", margin: "24px auto 0" }}>
+              {/* INCREASED MARGINS: Breathing room for the typing box */}
+              <div style={{ maxWidth: "760px", margin: "48px auto 0" }}>
                 {words.length > 0 && (
                   <TypingBox
                     ref={typingBoxRef}
@@ -269,7 +278,7 @@ export default function Home() {
           )}
         </div>
 
-        {/* SEO Content Section - Formatted for readability */}
+        {/* SEO Content Section */}
         <section style={{
           marginTop: "80px",
           maxWidth: "720px",
@@ -329,53 +338,60 @@ export default function Home() {
         </section>
       </main>
 
-      <footer
-        style={{
-          padding: "20px 24px",
-          borderTop: "1px solid var(--border)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: "20px",
-        }}
-      >
-        <span style={{ fontSize: "12px", color: "var(--text-muted)", fontFamily: "'Inter', sans-serif" }}>
-          Typing Speed Test
-        </span>
-        <span style={{ fontSize: "12px", color: "var(--border)" }}>·</span>
-
-        <button
-          onClick={reset}
+      {/* FOCUS MODE: Footer smoothly fades out and disables interactions when actively typing */}
+      <div style={{
+        opacity: isActive ? 0 : 1,
+        transition: "opacity 0.4s ease",
+        pointerEvents: isActive ? "none" : "auto"
+      }}>
+        <footer
           style={{
-            background: "transparent",
-            border: "none",
-            padding: 0,
-            cursor: "pointer",
-            fontSize: "12px",
-            color: "var(--text-muted)",
-            fontFamily: "'Inter', sans-serif",
+            padding: "20px 24px",
+            borderTop: "1px solid var(--border)",
             display: "flex",
             alignItems: "center",
+            justifyContent: "center",
+            gap: "20px",
           }}
-          aria-label="Restart test"
         >
-          <kbd
+          <span style={{ fontSize: "12px", color: "var(--text-muted)", fontFamily: "'Inter', sans-serif" }}>
+            Typing Speed Test
+          </span>
+          <span style={{ fontSize: "12px", color: "var(--border)" }}>·</span>
+
+          <button
+            onClick={reset}
             style={{
-              padding: "1px 5px",
-              background: "var(--surface)",
-              border: "1px solid var(--border)",
-              borderRadius: "4px",
-              fontSize: "11px",
-              color: "var(--text-secondary)",
-              marginRight: "6px",
-              cursor: "pointer"
+              background: "transparent",
+              border: "none",
+              padding: 0,
+              cursor: "pointer",
+              fontSize: "12px",
+              color: "var(--text-muted)",
+              fontFamily: "'Inter', sans-serif",
+              display: "flex",
+              alignItems: "center",
             }}
+            aria-label="Restart test"
           >
-            Tab
-          </kbd>
-          restart
-        </button>
-      </footer>
+            <kbd
+              style={{
+                padding: "1px 5px",
+                background: "var(--surface)",
+                border: "1px solid var(--border)",
+                borderRadius: "4px",
+                fontSize: "11px",
+                color: "var(--text-secondary)",
+                marginRight: "6px",
+                cursor: "pointer"
+              }}
+            >
+              Tab
+            </kbd>
+            restart
+          </button>
+        </footer>
+      </div>
 
       <LeaderboardModal
         isOpen={isLeaderboardOpen}

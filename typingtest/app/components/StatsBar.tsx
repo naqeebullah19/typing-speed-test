@@ -23,16 +23,15 @@ function Stat({
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        gap: "4px",
+        gap: "2px",
       }}
     >
       <span
         style={{
-          fontSize: "28px",
-          fontWeight: 600,
-          fontFamily: "'Inter', sans-serif",
-          letterSpacing: "-1px",
-          color: "var(--text-primary)",
+          fontSize: "20px", // Reduced from 28px for subtlety
+          fontWeight: 400,  // Thinner weight
+          fontFamily: "'Roboto Mono', monospace", // Matched to the typing text
+          color: "var(--text-muted)", // Subdued color so it doesn't fight for attention
           lineHeight: 1,
           fontVariantNumeric: "tabular-nums",
           transition: "color 200ms ease",
@@ -42,11 +41,11 @@ function Stat({
       </span>
       <span
         style={{
-          fontSize: "12px",
+          fontSize: "11px", // Reduced from 12px
           fontWeight: 500,
           letterSpacing: "0.5px",
           textTransform: "uppercase",
-          color: "var(--text-muted)",
+          color: "var(--border)", // Blends deeply into the background
           fontFamily: "'Inter', sans-serif",
           lineHeight: 1,
         }}
@@ -73,14 +72,16 @@ export default function StatsBar({
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        gap: "48px",
-        opacity: isActive ? 1 : 0.38,
-        transition: "opacity 250ms ease",
+        gap: "32px", // Tightened the gap slightly
+        // Fades in ONLY when actively typing. Stays invisible when idle.
+        opacity: isActive ? 1 : 0,
+        transition: "opacity 400ms ease",
         pointerEvents: "none",
+        height: "40px", // Reserve height so the layout doesn't jump when it appears
       }}
     >
-      <Stat value={isActive ? wpm : 0} label="wpm" />
-      <Stat value={`${isActive ? accuracy : 100}%`} label="acc" />
+      <Stat value={wpm} label="wpm" />
+      <Stat value={`${accuracy}%`} label="acc" />
       <Stat value={errors} label="err" />
       {mode === "time" && timeLeft !== null && (
         <Stat value={`${timeLeft}s`} label="time" />

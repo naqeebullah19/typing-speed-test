@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
   forwardRef,
+  memo,
 } from "react";
 
 export interface TypingBoxHandle {
@@ -29,6 +30,98 @@ type CharState = "pending" | "correct" | "incorrect";
 interface WordData {
   chars: { char: string; state: CharState }[];
 }
+
+const EMPTY_EXTRA_CHARS: { char: string; key: number }[] = [];
+
+const MemoizedWord = memo(function MemoizedWord({
+  word,
+  wordIdx,
+  isCurrent,
+  isPast,
+  extraChars,
+  wordRefs,
+  charRefs,
+  extraCharRefs,
+}: {
+  word: WordData;
+  wordIdx: number;
+  isCurrent: boolean;
+  isPast: boolean;
+  extraChars: { char: string; key: number }[];
+  wordRefs: React.MutableRefObject<(HTMLSpanElement | null)[]>;
+  charRefs: React.MutableRefObject<(HTMLSpanElement | null)[][]>;
+  extraCharRefs: React.MutableRefObject<(HTMLSpanElement | null)[]>;
+}) {
+  return (
+    <span
+      ref={(el) => { wordRefs.current[wordIdx] = el; }}
+      style={{
+        display: "inline-flex",
+        position: "relative",
+        marginRight: "14px",
+        marginBottom: "8px",
+        paddingBottom: "4px",
+      }}
+    >
+      {isCurrent && (
+        <span
+          style={{
+            position: "absolute",
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: "2px",
+            background: "var(--accent)",
+            borderRadius: "1px",
+          }}
+        />
+      )}
+
+      {word.chars.map((c, charIdx) => {
+        let color = "var(--typing-upcoming)";
+        if (isPast) {
+          color = c.state === "correct" ? "var(--typing-correct)" : "var(--typing-incorrect)";
+        } else if (isCurrent) {
+          if (c.state === "correct") color = "var(--typing-correct)";
+          else if (c.state === "incorrect") color = "var(--typing-incorrect)";
+          else color = "var(--typing-current)";
+        }
+
+        return (
+          <span
+            key={charIdx}
+            ref={(el) => {
+              if (!charRefs.current[wordIdx]) charRefs.current[wordIdx] = [];
+              charRefs.current[wordIdx][charIdx] = el;
+            }}
+            style={{
+              color,
+              transition: "color 100ms ease",
+              textDecoration: c.state === "incorrect" ? "underline" : "none",
+              textDecorationColor: "var(--typing-incorrect)",
+              textUnderlineOffset: "6px",
+              textDecorationThickness: "2px",
+            }}
+          >
+            {c.char}
+          </span>
+        );
+      })}
+
+      {isCurrent &&
+        extraChars.map((ec, i) => (
+          <span
+            key={ec.key}
+            ref={(el) => { extraCharRefs.current[i] = el; }}
+            style={{ color: "var(--typing-incorrect)", opacity: 0.8 }}
+          >
+            {ec.char}
+          </span>
+        ))}
+    </span>
+  );
+});
+
 
 const TypingBox = forwardRef<TypingBoxHandle, TypingBoxProps>(function TypingBox(
   { words, onStart, onWordComplete, onFinish, isFinished, mode, totalWords, onRestart },
@@ -53,10 +146,8 @@ const TypingBox = forwardRef<TypingBoxHandle, TypingBoxProps>(function TypingBox
   const charRefs = useRef<(HTMLSpanElement | null)[][]>([]);
   const extraCharRefs = useRef<(HTMLSpanElement | null)[]>([]);
 
-  // isComposing: true while Android/CJK IME is mid-composition — don't process then.
   const isComposing = useRef(false);
 
-  // Snapshot of latest state so callbacks never go stale without re-creating.
   const stateRef = useRef({
     lockedText,
     currentInput,
@@ -69,14 +160,10 @@ const TypingBox = forwardRef<TypingBoxHandle, TypingBoxProps>(function TypingBox
     stateRef.current = { lockedText, currentInput, currentWordIdx, wordData, hasStarted, extraChars };
   });
 
-  // ── Manually sync the uncontrolled input's raw value ───────────────────────
-  // We NEVER set input.value on every keystroke — only when we need to hard-reset
-  // (after completing a word, or on full reset). This keeps Android's IME happy.
   const syncInput = useCallback((value: string) => {
     if (inputRef.current) inputRef.current.value = value;
   }, []);
 
-  // ── Public reset handle ────────────────────────────────────────────────────
   useImperativeHandle(ref, () => ({
     reset(newWords: string[]) {
       setWordData(
@@ -92,14 +179,13 @@ const TypingBox = forwardRef<TypingBoxHandle, TypingBoxProps>(function TypingBox
       charRefs.current = [];
       extraCharRefs.current = [];
       wordRefs.current = [];
-      syncInput(""); // clear uncontrolled input
+      syncInput("");
     },
   }));
 
   const focusInput = useCallback(() => inputRef.current?.focus(), []);
   useEffect(() => { focusInput(); }, [focusInput]);
 
-  // ── Caret position ─────────────────────────────────────────────────────────
   useEffect(() => {
     const word = wordData[currentWordIdx];
     if (!word || !containerRef.current) return;
@@ -143,7 +229,6 @@ const TypingBox = forwardRef<TypingBoxHandle, TypingBoxProps>(function TypingBox
     }
   }, [currentWordIdx]);
 
-  // ── Tab → restart ──────────────────────────────────────────────────────────
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (isFinished) return;
@@ -155,9 +240,6 @@ const TypingBox = forwardRef<TypingBoxHandle, TypingBoxProps>(function TypingBox
     [isFinished, onRestart]
   );
 
-  // ── IME composition guards ─────────────────────────────────────────────────
-  // Without these, CJK / Android swipe keyboards fire onChange mid-composition
-  // and we'd incorrectly process partial syllables as real characters.
   const handleCompositionStart = useCallback(() => {
     isComposing.current = true;
   }, []);
@@ -165,42 +247,31 @@ const TypingBox = forwardRef<TypingBoxHandle, TypingBoxProps>(function TypingBox
   const handleCompositionEnd = useCallback(
     (e: React.CompositionEvent<HTMLInputElement>) => {
       isComposing.current = false;
-      // Fire onChange logic manually with the now-finalised value.
-      // We create a synthetic-ish event object that handleChange expects.
       const syntheticEvent = {
         target: e.currentTarget,
       } as React.ChangeEvent<HTMLInputElement>;
       handleChangeCore(syntheticEvent.target.value);
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     []
   );
 
-  // ── Core input processing (extracted so compositionEnd can call it too) ────
   const handleChangeCore = useCallback(
     (rawValue: string) => {
       if (isFinished) return;
 
-      const { lockedText, currentInput, currentWordIdx, wordData, hasStarted } =
-        stateRef.current;
+      const { lockedText, currentInput, currentWordIdx, wordData, hasStarted } = stateRef.current;
 
-      // ── Guard: don't allow backspacing into completed words ────────────────
       if (rawValue.length < lockedText.length) {
-        // Restore the uncontrolled input to where we left off
         syncInput(lockedText + currentInput);
         return;
       }
 
       const typed = rawValue.slice(lockedText.length);
-
-      // ── Space / word completion ────────────────────────────────────────────
-      // indexOf(' ') catches spaces wherever Android decides to insert them
-      // (beginning, middle, or end of the typed chunk).
       const spaceIdx = typed.indexOf(" ");
+
       if (spaceIdx !== -1) {
         const typedWord = typed.slice(0, spaceIdx);
 
-        // Ignore a leading space with nothing typed yet
         if (typedWord === "" && currentInput === "") {
           syncInput(lockedText);
           return;
@@ -222,10 +293,7 @@ const TypingBox = forwardRef<TypingBoxHandle, TypingBoxProps>(function TypingBox
 
         const newLocked = lockedText + typedWord + " ";
 
-        // Hard-reset the uncontrolled input so Android's keyboard buffer starts
-        // fresh for the next word — this is the key fix for the "random keywords" bug.
         syncInput(newLocked);
-
         setLockedText(newLocked);
         setCurrentInput("");
         setCurrentWordIdx((p) => p + 1);
@@ -233,7 +301,6 @@ const TypingBox = forwardRef<TypingBoxHandle, TypingBoxProps>(function TypingBox
         return;
       }
 
-      // ── Regular character typing ───────────────────────────────────────────
       if (!hasStarted && typed.length > 0) {
         setHasStarted(true);
         onStart();
@@ -243,16 +310,20 @@ const TypingBox = forwardRef<TypingBoxHandle, TypingBoxProps>(function TypingBox
 
       const word = wordData[currentWordIdx];
       if (word) {
+        // PERF UPGRADE: We ONLY duplicate the current word being typed. 
+        // The other 799 words remain untouched in memory, keeping React.memo completely intact!
         setWordData((prev) => {
-          const updated = prev.map((w) => ({ chars: w.chars.map((c) => ({ ...c })) }));
-          const chars = updated[currentWordIdx].chars;
-          for (let i = 0; i < chars.length; i++) {
+          const updated = [...prev];
+          const currentChars = prev[currentWordIdx].chars.map((c) => ({ ...c }));
+
+          for (let i = 0; i < currentChars.length; i++) {
             if (i < typed.length) {
-              chars[i].state = typed[i] === chars[i].char ? "correct" : "incorrect";
+              currentChars[i].state = typed[i] === currentChars[i].char ? "correct" : "incorrect";
             } else {
-              chars[i].state = "pending";
+              currentChars[i].state = "pending";
             }
           }
+          updated[currentWordIdx] = { chars: currentChars };
           return updated;
         });
 
@@ -267,102 +338,16 @@ const TypingBox = forwardRef<TypingBoxHandle, TypingBoxProps>(function TypingBox
     [isFinished, onStart, onWordComplete, onFinish, mode, totalWords, syncInput]
   );
 
-  // ── onChange ───────────────────────────────────────────────────────────────
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      // Skip while IME is composing (Android swipe / CJK keyboards)
       if (isComposing.current) return;
       handleChangeCore(e.target.value);
     },
     [handleChangeCore]
   );
 
-  // ── Render helpers ─────────────────────────────────────────────────────────
-  const renderWord = (word: WordData, wordIdx: number) => {
-    const isCurrent = wordIdx === currentWordIdx;
-    const isPast = wordIdx < currentWordIdx;
-
-    return (
-      <span
-        key={wordIdx}
-        ref={(el) => { wordRefs.current[wordIdx] = el; }}
-        style={{
-          display: "inline-flex",
-          position: "relative",
-          marginRight: "14px",
-          marginBottom: "8px",
-          paddingBottom: "4px",
-        }}
-      >
-        {isCurrent && (
-          <span
-            style={{
-              position: "absolute",
-              bottom: 0,
-              left: 0,
-              right: 0,
-              height: "2px",
-              background: "var(--text-primary)",
-              borderRadius: "1px",
-            }}
-          />
-        )}
-
-        {word.chars.map((c, charIdx) => {
-          let color = "var(--typing-upcoming)";
-          if (isPast) {
-            color = c.state === "correct" ? "var(--typing-correct)" : "var(--typing-incorrect)";
-          } else if (isCurrent) {
-            if (c.state === "correct") color = "var(--typing-correct)";
-            else if (c.state === "incorrect") color = "var(--typing-incorrect)";
-            else color = "var(--typing-current)";
-          }
-
-          return (
-            <span
-              key={charIdx}
-              ref={(el) => {
-                if (!charRefs.current[wordIdx]) charRefs.current[wordIdx] = [];
-                charRefs.current[wordIdx][charIdx] = el;
-              }}
-              style={{
-                color,
-                transition: "color 100ms ease",
-                textDecoration: c.state === "incorrect" ? "underline" : "none",
-                textDecorationColor: "var(--typing-incorrect)",
-                textUnderlineOffset: "6px",
-                textDecorationThickness: "2px",
-              }}
-            >
-              {c.char}
-            </span>
-          );
-        })}
-
-        {isCurrent &&
-          extraChars.map((ec, i) => (
-            <span
-              key={ec.key}
-              ref={(el) => { extraCharRefs.current[i] = el; }}
-              style={{ color: "var(--typing-incorrect)", opacity: 0.8 }}
-            >
-              {ec.char}
-            </span>
-          ))}
-      </span>
-    );
-  };
-
   return (
     <div style={{ position: "relative", cursor: "text" }} onClick={focusInput}>
-      {/*
-        UNCONTROLLED input — no `value` prop.
-        This is the core Android fix: a controlled input (`value={...}`) causes
-        React to re-set the DOM value on every render, which resets the Android
-        IME composition buffer and produces garbled/random output on space.
-        Instead we only write to inputRef.current.value when strictly necessary
-        (word completion, full reset), leaving the IME completely alone otherwise.
-      */}
       <input
         ref={inputRef}
         onChange={handleChange}
@@ -394,15 +379,14 @@ const TypingBox = forwardRef<TypingBoxHandle, TypingBoxProps>(function TypingBox
           <span
             style={{
               position: "absolute",
-              top: caretPos.top + 1,
+              top: caretPos.top + 13,
               left: caretPos.left,
               width: "2px",
-              height: "1.6em",
-              background: "var(--text-primary)",
+              height: "24px",
+              background: "var(--accent)",
               borderRadius: "1px",
               animation: "caretBlink 1s infinite",
-              transition:
-                "top 90ms cubic-bezier(0.4,0,0.2,1), left 90ms cubic-bezier(0.4,0,0.2,1)",
+              transition: "top 90ms cubic-bezier(0.4,0,0.2,1), left 90ms cubic-bezier(0.4,0,0.2,1)",
               zIndex: 10,
               pointerEvents: "none",
             }}
@@ -441,12 +425,24 @@ const TypingBox = forwardRef<TypingBoxHandle, TypingBoxProps>(function TypingBox
             flexWrap: "wrap",
             fontSize: "22px",
             lineHeight: 2.3,
-            fontFamily: "'JetBrains Mono', monospace",
+            fontFamily: "'Roboto Mono', monospace",
             fontWeight: 400,
             letterSpacing: "0.3px",
           }}
         >
-          {wordData.map((word, i) => renderWord(word, i))}
+          {wordData.map((word, i) => (
+            <MemoizedWord
+              key={i}
+              word={word}
+              wordIdx={i}
+              isCurrent={i === currentWordIdx}
+              isPast={i < currentWordIdx}
+              extraChars={i === currentWordIdx ? extraChars : EMPTY_EXTRA_CHARS}
+              wordRefs={wordRefs}
+              charRefs={charRefs}
+              extraCharRefs={extraCharRefs}
+            />
+          ))}
         </div>
       </div>
 
