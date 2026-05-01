@@ -3,8 +3,9 @@ import Script from "next/script";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://typingspeedtest.live"),
   title: "Free Typing Speed Test — Check Your WPM Online",
-  description: "Take a free typing speed test and instantly see your WPM (words per minute) and accuracy score. No sign-up needed. Choose 30-second, 1-minute or 3-minute modes, track your daily streak, and compete on the global leaderboard.",
+  description: "Take a free typing speed test and instantly see your WPM (words per minute) and accuracy score. No sign-up needed. Choose 15-second, 30-second, 1-minute or 2-minute modes, track your daily streak, and compete on the global leaderboard.",
   keywords: [
     "typing speed test",
     "wpm test",
@@ -14,22 +15,35 @@ export const metadata: Metadata = {
     "keyboard speed test",
     "typing accuracy test",
     "touch typing test",
-    "wpm checker"
+    "wpm checker",
+    "fast typing"
   ],
+  authors: [{ name: "Typing Speed Test" }],
+  creator: "Typing Speed Test",
+  alternates: {
+    canonical: "https://typingspeedtest.live",
+  },
   openGraph: {
     title: "Free Typing Speed Test — Check Your WPM Online",
-    description: "Measure your typing speed in WPM and accuracy instantly. Free, no sign-up. 30s, 1-minute and 3-minute modes with global leaderboard.",
+    description: "Measure your typing speed in WPM and accuracy instantly. Free, no sign-up. 15s, 30s, 60s, and 120s modes with a global leaderboard.",
     url: "https://typingspeedtest.live",
     siteName: "Typing Speed Test",
     images: [
       {
-        url: "/opengraph-image.png",
+        url: "/opengraph-image.png", // Next.js will automatically find this in your app/ or public/ folder
         width: 1200,
         height: 630,
+        alt: "Typing Speed Test - Measure your WPM instantly",
       },
     ],
     locale: "en_US",
     type: "website",
+  },
+  twitter: {
+    card: "summary_large_image", // This is the magic line that makes the image massive on Twitter/Discord
+    title: "Free Typing Speed Test — Check Your WPM Online",
+    description: "Measure your typing speed in WPM and accuracy instantly. Free, no sign-up. Challenge yourself and climb the leaderboard.",
+    images: ["/opengraph-image.png"],
   },
 };
 
@@ -44,7 +58,7 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Roboto+Mono:wght@400;500&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Roboto+Mono:wght@400;500;600;700&display=swap"
           rel="stylesheet"
         />
       </head>
