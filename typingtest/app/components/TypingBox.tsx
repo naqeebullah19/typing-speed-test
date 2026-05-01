@@ -174,21 +174,17 @@ const TypingBox = forwardRef<TypingBoxHandle, TypingBoxProps>(function TypingBox
   const focusInput = useCallback(() => inputRef.current?.focus(), []);
   useEffect(() => { focusInput(); }, [focusInput]);
 
-  // 🚨 AGGRESSIVE FOCUS FIX 🚨
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
       if (isFinished) return;
 
-      // 1. Catch TAB anywhere on the entire page and force a restart
       if (e.key === "Tab") {
-        e.preventDefault(); // Stops the browser from moving focus to the next button
+        e.preventDefault();
         onRestart();
-        inputRef.current?.focus(); // Immediately lock focus back to typing
+        inputRef.current?.focus();
         return;
       }
 
-      // 2. Catch typing anywhere on the page and steal focus back
-      // If the user presses a letter, number, space, or backspace while unfocused...
       const isTypingKey = e.key.length === 1 || e.key === "Backspace";
       if (
         document.activeElement !== inputRef.current &&
@@ -250,7 +246,6 @@ const TypingBox = forwardRef<TypingBoxHandle, TypingBoxProps>(function TypingBox
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
-      // Local Tab intercept (Global listener handles it if unfocused)
       if (isFinished) return;
       if (e.key === "Tab") {
         e.preventDefault();
@@ -416,7 +411,8 @@ const TypingBox = forwardRef<TypingBoxHandle, TypingBoxProps>(function TypingBox
         </div>
       </div>
 
-      {!hasStarted && (
+      {/* CHANGED: This is now !isFinished instead of !hasStarted */}
+      {!isFinished && (
         <div
           style={{
             marginTop: "24px",
