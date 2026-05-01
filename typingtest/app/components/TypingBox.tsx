@@ -134,7 +134,6 @@ const TypingBox = forwardRef<TypingBoxHandle, TypingBoxProps>(function TypingBox
   );
 
   const [currentWordIdx, setCurrentWordIdx] = useState(0);
-  const [lockedText, setLockedText] = useState("");
   const [currentInput, setCurrentInput] = useState("");
   const [hasStarted, setHasStarted] = useState(false);
   const [caretPos, setCaretPos] = useState({ top: 0, left: 0 });
@@ -146,23 +145,16 @@ const TypingBox = forwardRef<TypingBoxHandle, TypingBoxProps>(function TypingBox
   const charRefs = useRef<(HTMLSpanElement | null)[][]>([]);
   const extraCharRefs = useRef<(HTMLSpanElement | null)[]>([]);
 
-  const isComposing = useRef(false);
-
+  // State Ref to prevent stale closures in useCallback without forcing re-renders
   const stateRef = useRef({
-    lockedText,
     currentInput,
     currentWordIdx,
     wordData,
     hasStarted,
-    extraChars,
   });
   useEffect(() => {
-    stateRef.current = { lockedText, currentInput, currentWordIdx, wordData, hasStarted, extraChars };
+    stateRef.current = { currentInput, currentWordIdx, wordData, hasStarted };
   });
-
-  const syncInput = useCallback((value: string) => {
-    if (inputRef.current) inputRef.current.value = value;
-  }, []);
 
   useImperativeHandle(ref, () => ({
     reset(newWords: string[]) {
@@ -172,14 +164,12 @@ const TypingBox = forwardRef<TypingBoxHandle, TypingBoxProps>(function TypingBox
         }))
       );
       setCurrentWordIdx(0);
-      setLockedText("");
       setCurrentInput("");
       setHasStarted(false);
       setExtraChars([]);
       charRefs.current = [];
       extraCharRefs.current = [];
       wordRefs.current = [];
-      syncInput("");
     },
   }));
 
@@ -240,120 +230,102 @@ const TypingBox = forwardRef<TypingBoxHandle, TypingBoxProps>(function TypingBox
     [isFinished, onRestart]
   );
 
-  const handleCompositionStart = useCallback(() => {
-    isComposing.current = true;
-  }, []);
+  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    if (isFinished) return;
 
-  const handleCompositionEnd = useCallback(
-    (e: React.CompositionEvent<HTMLInputElement>) => {
-      isComposing.current = false;
-      const syntheticEvent = {
-        target: e.currentTarget,
-      } as React.ChangeEvent<HTMLInputElement>;
-      handleChangeCore(syntheticEvent.target.value);
-    },
-    []
-  );
+    const rawValue = e.target.value;
+    const { currentInput, currentWordIdx, wordData, hasStarted } = stateRef.current;
 
-  const handleChangeCore = useCallback(
-    (rawValue: string) => {
-      if (isFinished) return;
+    // Prevent multiple spaces at the start of a new word from instantly skipping it
+    if (currentInput === "" && rawValue.trim() === "") {
+      return;
+    }
 
-      const { lockedText, currentInput, currentWordIdx, wordData, hasStarted } = stateRef.current;
+    // --- WORD COMPLETION (Spacebar detected) ---
+    if (rawValue.includes(" ")) {
+      const parts = rawValue.split(" ");
+      const typedWord = parts[0];
 
-      if (rawValue.length < lockedText.length) {
-        syncInput(lockedText + currentInput);
-        return;
-      }
-
-      const typed = rawValue.slice(lockedText.length);
-      const spaceIdx = typed.indexOf(" ");
-
-      if (spaceIdx !== -1) {
-        const typedWord = typed.slice(0, spaceIdx);
-
-        if (typedWord === "" && currentInput === "") {
-          syncInput(lockedText);
-          return;
-        }
-
-        if (!hasStarted) {
-          setHasStarted(true);
-          onStart();
-        }
-
-        const word = wordData[currentWordIdx];
-        const correct = typedWord === word.chars.map((c) => c.char).join("");
-        onWordComplete(correct);
-
-        if (mode === "words" && totalWords !== undefined && currentWordIdx + 1 >= totalWords) {
-          onFinish();
-          return;
-        }
-
-        const newLocked = lockedText + typedWord + " ";
-
-        syncInput(newLocked);
-        setLockedText(newLocked);
-        setCurrentInput("");
-        setCurrentWordIdx((p) => p + 1);
-        setExtraChars([]);
-        return;
-      }
-
-      if (!hasStarted && typed.length > 0) {
+      if (!hasStarted) {
         setHasStarted(true);
         onStart();
       }
 
-      setCurrentInput(typed);
-
       const word = wordData[currentWordIdx];
-      if (word) {
-        // PERF UPGRADE: We ONLY duplicate the current word being typed. 
-        // The other 799 words remain untouched in memory, keeping React.memo completely intact!
-        setWordData((prev) => {
-          const updated = [...prev];
-          const currentChars = prev[currentWordIdx].chars.map((c) => ({ ...c }));
+      const isCorrect = typedWord === word.chars.map((c) => c.char).join("");
+      onWordComplete(isCorrect);
 
-          for (let i = 0; i < currentChars.length; i++) {
-            if (i < typed.length) {
-              currentChars[i].state = typed[i] === currentChars[i].char ? "correct" : "incorrect";
-            } else {
-              currentChars[i].state = "pending";
-            }
-          }
-          updated[currentWordIdx] = { chars: currentChars };
-          return updated;
-        });
-
-        if (typed.length > word.chars.length) {
-          const extraStr = typed.slice(word.chars.length).slice(0, 8);
-          setExtraChars(extraStr.split("").map((char, i) => ({ char, key: Date.now() + i })));
-        } else {
-          setExtraChars([]);
-        }
+      if (mode === "words" && totalWords !== undefined && currentWordIdx + 1 >= totalWords) {
+        onFinish();
+        return;
       }
-    },
-    [isFinished, onStart, onWordComplete, onFinish, mode, totalWords, syncInput]
-  );
 
-  const handleChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      if (isComposing.current) return;
-      handleChangeCore(e.target.value);
-    },
-    [handleChangeCore]
-  );
+      // 🚨 CRITICAL MOBILE FIX: Reset input instantly for the next word. 
+      // parts.slice(1).join(" ") captures any extra letters typed after the space.
+      setCurrentInput(parts.slice(1).join(" "));
+      setCurrentWordIdx((p) => p + 1);
+      setExtraChars([]);
+
+      // Update UI for the finished word
+      setWordData((prev) => {
+        const updated = [...prev];
+        const currentChars = prev[currentWordIdx].chars.map((c) => ({ ...c }));
+        for (let i = 0; i < currentChars.length; i++) {
+          // If they missed characters at the end, mark them incorrect
+          currentChars[i].state = i < typedWord.length && typedWord[i] === currentChars[i].char ? "correct" : "incorrect";
+        }
+        updated[currentWordIdx] = { chars: currentChars };
+        return updated;
+      });
+
+      return;
+    }
+
+    // --- NORMAL TYPING (No spacebar) ---
+    if (!hasStarted && rawValue.length > 0) {
+      setHasStarted(true);
+      onStart();
+    }
+
+    setCurrentInput(rawValue);
+
+    // Update live character highlighting
+    const word = wordData[currentWordIdx];
+    if (word) {
+      setWordData((prev) => {
+        const updated = [...prev];
+        const currentChars = prev[currentWordIdx].chars.map((c) => ({ ...c }));
+
+        for (let i = 0; i < currentChars.length; i++) {
+          if (i < rawValue.length) {
+            currentChars[i].state = rawValue[i] === currentChars[i].char ? "correct" : "incorrect";
+          } else {
+            currentChars[i].state = "pending";
+          }
+        }
+        updated[currentWordIdx] = { chars: currentChars };
+        return updated;
+      });
+
+      // Handle extra typed characters beyond the word's length
+      if (rawValue.length > word.chars.length) {
+        const extraStr = rawValue.slice(word.chars.length).slice(0, 8);
+        setExtraChars(extraStr.split("").map((char, i) => ({ char, key: Date.now() + i })));
+      } else {
+        setExtraChars([]);
+      }
+    }
+  }, [isFinished, onStart, onWordComplete, onFinish, mode, totalWords]);
 
   return (
     <div style={{ position: "relative", cursor: "text" }} onClick={focusInput}>
+
+      {/* 🚨 CRITICAL MOBILE FIX: A fully controlled input bound ONLY to currentInput */}
       <input
         ref={inputRef}
+        value={currentInput}
         onChange={handleChange}
         onKeyDown={handleKeyDown}
-        onCompositionStart={handleCompositionStart}
-        onCompositionEnd={handleCompositionEnd}
         type="text"
         inputMode="text"
         autoComplete="off"
