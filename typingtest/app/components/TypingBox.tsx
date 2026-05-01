@@ -122,7 +122,6 @@ const MemoizedWord = memo(function MemoizedWord({
   );
 });
 
-
 const TypingBox = forwardRef<TypingBoxHandle, TypingBoxProps>(function TypingBox(
   { words, onStart, onWordComplete, onFinish, isFinished, mode, totalWords, onRestart },
   ref
@@ -145,7 +144,6 @@ const TypingBox = forwardRef<TypingBoxHandle, TypingBoxProps>(function TypingBox
   const charRefs = useRef<(HTMLSpanElement | null)[][]>([]);
   const extraCharRefs = useRef<(HTMLSpanElement | null)[]>([]);
 
-  // State Ref to prevent stale closures in useCallback without forcing re-renders
   const stateRef = useRef({
     currentInput,
     currentWordIdx,
@@ -175,6 +173,37 @@ const TypingBox = forwardRef<TypingBoxHandle, TypingBoxProps>(function TypingBox
 
   const focusInput = useCallback(() => inputRef.current?.focus(), []);
   useEffect(() => { focusInput(); }, [focusInput]);
+
+  // 🚨 AGGRESSIVE FOCUS FIX 🚨
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if (isFinished) return;
+
+      // 1. Catch TAB anywhere on the entire page and force a restart
+      if (e.key === "Tab") {
+        e.preventDefault(); // Stops the browser from moving focus to the next button
+        onRestart();
+        inputRef.current?.focus(); // Immediately lock focus back to typing
+        return;
+      }
+
+      // 2. Catch typing anywhere on the page and steal focus back
+      // If the user presses a letter, number, space, or backspace while unfocused...
+      const isTypingKey = e.key.length === 1 || e.key === "Backspace";
+      if (
+        document.activeElement !== inputRef.current &&
+        isTypingKey &&
+        !e.ctrlKey &&
+        !e.metaKey &&
+        !e.altKey
+      ) {
+        inputRef.current?.focus();
+      }
+    };
+
+    document.addEventListener("keydown", handleGlobalKeyDown);
+    return () => document.removeEventListener("keydown", handleGlobalKeyDown);
+  }, [isFinished, onRestart]);
 
   useEffect(() => {
     const word = wordData[currentWordIdx];
@@ -221,6 +250,7 @@ const TypingBox = forwardRef<TypingBoxHandle, TypingBoxProps>(function TypingBox
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
+      // Local Tab intercept (Global listener handles it if unfocused)
       if (isFinished) return;
       if (e.key === "Tab") {
         e.preventDefault();
@@ -236,12 +266,10 @@ const TypingBox = forwardRef<TypingBoxHandle, TypingBoxProps>(function TypingBox
     const rawValue = e.target.value;
     const { currentInput, currentWordIdx, wordData, hasStarted } = stateRef.current;
 
-    // Prevent multiple spaces at the start of a new word from instantly skipping it
     if (currentInput === "" && rawValue.trim() === "") {
       return;
     }
 
-    // --- WORD COMPLETION (Spacebar detected) ---
     if (rawValue.includes(" ")) {
       const parts = rawValue.split(" ");
       const typedWord = parts[0];
@@ -260,18 +288,14 @@ const TypingBox = forwardRef<TypingBoxHandle, TypingBoxProps>(function TypingBox
         return;
       }
 
-      // 🚨 CRITICAL MOBILE FIX: Reset input instantly for the next word. 
-      // parts.slice(1).join(" ") captures any extra letters typed after the space.
       setCurrentInput(parts.slice(1).join(" "));
       setCurrentWordIdx((p) => p + 1);
       setExtraChars([]);
 
-      // Update UI for the finished word
       setWordData((prev) => {
         const updated = [...prev];
         const currentChars = prev[currentWordIdx].chars.map((c) => ({ ...c }));
         for (let i = 0; i < currentChars.length; i++) {
-          // If they missed characters at the end, mark them incorrect
           currentChars[i].state = i < typedWord.length && typedWord[i] === currentChars[i].char ? "correct" : "incorrect";
         }
         updated[currentWordIdx] = { chars: currentChars };
@@ -281,7 +305,6 @@ const TypingBox = forwardRef<TypingBoxHandle, TypingBoxProps>(function TypingBox
       return;
     }
 
-    // --- NORMAL TYPING (No spacebar) ---
     if (!hasStarted && rawValue.length > 0) {
       setHasStarted(true);
       onStart();
@@ -289,7 +312,6 @@ const TypingBox = forwardRef<TypingBoxHandle, TypingBoxProps>(function TypingBox
 
     setCurrentInput(rawValue);
 
-    // Update live character highlighting
     const word = wordData[currentWordIdx];
     if (word) {
       setWordData((prev) => {
@@ -307,7 +329,6 @@ const TypingBox = forwardRef<TypingBoxHandle, TypingBoxProps>(function TypingBox
         return updated;
       });
 
-      // Handle extra typed characters beyond the word's length
       if (rawValue.length > word.chars.length) {
         const extraStr = rawValue.slice(word.chars.length).slice(0, 8);
         setExtraChars(extraStr.split("").map((char, i) => ({ char, key: Date.now() + i })));
@@ -320,7 +341,6 @@ const TypingBox = forwardRef<TypingBoxHandle, TypingBoxProps>(function TypingBox
   return (
     <div style={{ position: "relative", cursor: "text" }} onClick={focusInput}>
 
-      {/* 🚨 CRITICAL MOBILE FIX: A fully controlled input bound ONLY to currentInput */}
       <input
         ref={inputRef}
         value={currentInput}
@@ -365,30 +385,8 @@ const TypingBox = forwardRef<TypingBoxHandle, TypingBoxProps>(function TypingBox
           />
         )}
 
-        <div
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            height: "20px",
-            background: "linear-gradient(to bottom, var(--bg), transparent)",
-            zIndex: 5,
-            pointerEvents: "none",
-          }}
-        />
-        <div
-          style={{
-            position: "absolute",
-            bottom: 0,
-            left: 0,
-            right: 0,
-            height: "40px",
-            background: "linear-gradient(to top, var(--bg), transparent)",
-            zIndex: 5,
-            pointerEvents: "none",
-          }}
-        />
+        <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "20px", background: "linear-gradient(to bottom, var(--bg), transparent)", zIndex: 5, pointerEvents: "none" }} />
+        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "40px", background: "linear-gradient(to top, var(--bg), transparent)", zIndex: 5, pointerEvents: "none" }} />
 
         <div
           className="typing-text"
