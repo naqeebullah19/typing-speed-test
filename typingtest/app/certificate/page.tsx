@@ -74,7 +74,7 @@ function CertificateContent() {
             </svg>
             <div>
               <div style={{ fontSize: "20px", fontWeight: 700, color: "var(--text-primary)", fontFamily: "'Roboto Mono', monospace", letterSpacing: "-0.5px", lineHeight: 1.1 }}>
-                typingspeedtest.live
+                Typing Speed Test
               </div>
               <div style={{ fontSize: "12px", color: "var(--text-muted)", fontFamily: "'Inter', sans-serif" }}>
                 World's most accurate Typing Test
@@ -151,9 +151,9 @@ function CertificateContent() {
           <div style={{ textAlign: "center", marginBottom: "40px", position: "relative", zIndex: 2 }}>
             <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "12px", marginBottom: "8px" }}>
               <svg width="32" height="32" viewBox="0 0 24 24" fill="var(--accent)" stroke="var(--accent)" strokeWidth="1"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
-              <h1 style={{ fontSize: "28px", color: "var(--text-primary)", fontFamily: "'Roboto Mono', monospace", margin: 0 }}>typing speed test</h1>
+              <h1 style={{ fontSize: "28px", color: "var(--text-primary)", fontFamily: "'Roboto Mono', monospace", margin: 0 }}>Typing Speed Test</h1>
             </div>
-            <div style={{ fontSize: "14px", color: "var(--text-muted)", letterSpacing: "2px", textTransform: "uppercase", fontFamily: "'Inter', sans-serif", marginBottom: "32px" }}>Typing Speed Test</div>
+            <div style={{ fontSize: "14px", color: "var(--text-muted)", letterSpacing: "2px", textTransform: "uppercase", fontFamily: "'Inter', sans-serif", marginBottom: "32px" }}>typingspeedtest.live</div>
             
             <h2 style={{ fontSize: "48px", color: "var(--accent)", fontFamily: "'Inter', serif", fontWeight: 400, margin: "0 0 24px 0", letterSpacing: "-1px" }}>Certificate of Excellence</h2>
             
