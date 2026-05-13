@@ -180,8 +180,17 @@ export default function ResultModal({
 
         <button 
           onClick={() => {
-            const url = `/certificate?wpm=${wpm}&acc=${accuracy}&raw=${rawWpmFinal}&mode=${mode}&time=${timeTaken}&words=${totalWords}&chars=${correctChars}/${errors}`;
-            router.push(url);
+            const stats = {
+              wpm,
+              acc: accuracy,
+              raw: rawWpmFinal,
+              mode,
+              time: timeTaken,
+              words: totalWords,
+              chars: `${correctChars}/${errors}`
+            };
+            localStorage.setItem("last_test_stats", JSON.stringify(stats));
+            router.push("/certificate");
           }}
           style={{ ...actionBtnStyle, color: "var(--bg)", background: "var(--accent)", borderColor: "var(--accent)", fontWeight: 600 }}
           onMouseOver={(e) => (e.currentTarget.style.opacity = "0.9")}
