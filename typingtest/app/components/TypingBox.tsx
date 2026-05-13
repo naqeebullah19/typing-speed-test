@@ -23,6 +23,7 @@ interface TypingBoxProps {
   mode: "time" | "words";
   totalWords?: number;
   onRestart: () => void;
+  onErrorTracking?: (expectedChar: string) => void; // <-- NEW PROP
 }
 
 type CharState = "pending" | "correct" | "incorrect";
@@ -123,7 +124,7 @@ const MemoizedWord = memo(function MemoizedWord({
 });
 
 const TypingBox = forwardRef<TypingBoxHandle, TypingBoxProps>(function TypingBox(
-  { words, onStart, onWordComplete, onFinish, isFinished, mode, totalWords, onRestart },
+  { words, onStart, onWordComplete, onFinish, isFinished, mode, totalWords, onRestart, onErrorTracking },
   ref
 ) {
   const [wordData, setWordData] = useState<WordData[]>(() =>
@@ -179,18 +180,18 @@ const TypingBox = forwardRef<TypingBoxHandle, TypingBoxProps>(function TypingBox
       if (isFinished) return;
 
       if (e.key === "Tab") {
-        e.preventDefault();
+        e.preventDefault(); 
         onRestart();
-        inputRef.current?.focus();
+        inputRef.current?.focus(); 
         return;
       }
 
       const isTypingKey = e.key.length === 1 || e.key === "Backspace";
       if (
-        document.activeElement !== inputRef.current &&
-        isTypingKey &&
-        !e.ctrlKey &&
-        !e.metaKey &&
+        document.activeElement !== inputRef.current && 
+        isTypingKey && 
+        !e.ctrlKey && 
+        !e.metaKey && 
         !e.altKey
       ) {
         inputRef.current?.focus();
@@ -257,12 +258,23 @@ const TypingBox = forwardRef<TypingBoxHandle, TypingBoxProps>(function TypingBox
 
   const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     if (isFinished) return;
-
+    
     const rawValue = e.target.value;
     const { currentInput, currentWordIdx, wordData, hasStarted } = stateRef.current;
 
     if (currentInput === "" && rawValue.trim() === "") {
-      return;
+      return; 
+    }
+
+    // --- NEW: Check for errors on the newly typed character ---
+    if (rawValue.length > currentInput.length) {
+      const typedIndex = rawValue.length - 1;
+      const expectedChar = wordData[currentWordIdx]?.chars[typedIndex]?.char;
+      // If there is an expected character and what they typed doesn't match it
+      if (expectedChar && rawValue[typedIndex] !== expectedChar) {
+        // Send the expected character up to the heatmap
+        onErrorTracking?.(expectedChar === " " ? "SPACE" : expectedChar.toUpperCase());
+      }
     }
 
     if (rawValue.includes(" ")) {
@@ -276,6 +288,16 @@ const TypingBox = forwardRef<TypingBoxHandle, TypingBoxProps>(function TypingBox
 
       const word = wordData[currentWordIdx];
       const isCorrect = typedWord === word.chars.map((c) => c.char).join("");
+      
+      // If the word was wrong and they hit space, track missed letters at the end
+      if (!isCorrect) {
+         word.chars.forEach((c, idx) => {
+           if (idx >= typedWord.length) {
+             onErrorTracking?.(c.char === " " ? "SPACE" : c.char.toUpperCase());
+           }
+         });
+      }
+
       onWordComplete(isCorrect);
 
       if (mode === "words" && totalWords !== undefined && currentWordIdx + 1 >= totalWords) {
@@ -331,11 +353,11 @@ const TypingBox = forwardRef<TypingBoxHandle, TypingBoxProps>(function TypingBox
         setExtraChars([]);
       }
     }
-  }, [isFinished, onStart, onWordComplete, onFinish, mode, totalWords]);
+  }, [isFinished, onStart, onWordComplete, onFinish, mode, totalWords, onErrorTracking]);
 
   return (
     <div style={{ position: "relative", cursor: "text" }} onClick={focusInput}>
-
+      
       <input
         ref={inputRef}
         value={currentInput}
@@ -410,48 +432,6 @@ const TypingBox = forwardRef<TypingBoxHandle, TypingBoxProps>(function TypingBox
           ))}
         </div>
       </div>
-
-      {/* CHANGED: This is now !isFinished instead of !hasStarted */}
-      {!isFinished && (
-        <div
-          style={{
-            marginTop: "24px",
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            flexWrap: "wrap",
-            gap: "8px",
-            fontSize: "14px",
-            color: "var(--text-muted)",
-            fontFamily: "'Inter', sans-serif",
-          }}
-        >
-          <span>Start typing to begin —</span>
-          <button
-            onClick={onRestart}
-            style={{
-              background: "var(--surface)",
-              border: "1px solid var(--border)",
-              borderRadius: "6px",
-              padding: "6px 12px",
-              cursor: "pointer",
-              fontSize: "13px",
-              color: "var(--text-primary)",
-              fontFamily: "inherit",
-              display: "flex",
-              alignItems: "center",
-              gap: "6px",
-              boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-              transition: "all 0.1s ease",
-            }}
-            onMouseOver={(e) => (e.currentTarget.style.background = "var(--border)")}
-            onMouseOut={(e) => (e.currentTarget.style.background = "var(--surface)")}
-          >
-            <kbd style={{ fontSize: "11px", color: "var(--text-secondary)", opacity: 0.8 }}>Tab</kbd>
-            Restart Test
-          </button>
-        </div>
-      )}
     </div>
   );
 });
