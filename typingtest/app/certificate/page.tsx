@@ -105,10 +105,12 @@ function CertificateContent() {
 
           <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "12px", padding: "20px", display: "flex", alignItems: "flex-end", gap: "16px" }}>
             <div style={{ flex: 1 }}>
-              <label style={{ display: "block", fontSize: "13px", color: "var(--text-muted)", marginBottom: "8px", fontFamily: "'Inter', sans-serif", fontWeight: 500 }}>Your name on certificate</label>
+              <label htmlFor="cert-name" style={{ display: "block", fontSize: "13px", color: "var(--text-muted)", marginBottom: "8px", fontFamily: "'Inter', sans-serif", fontWeight: 500 }}>Your name on certificate</label>
               <input 
+                id="cert-name"
                 type="text" 
                 placeholder="e.g., Naqeebullah Khan" 
+                aria-label="Name to print on the certificate"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleApplyName()}
@@ -151,7 +153,7 @@ function CertificateContent() {
           <div style={{ textAlign: "center", marginBottom: "40px", position: "relative", zIndex: 2 }}>
             <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "12px", marginBottom: "8px" }}>
               <svg width="32" height="32" viewBox="0 0 24 24" fill="var(--accent)" stroke="var(--accent)" strokeWidth="1"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
-              <h1 style={{ fontSize: "28px", color: "var(--text-primary)", fontFamily: "'Roboto Mono', monospace", margin: 0 }}>Typing Speed Test</h1>
+              <h1 style={{ fontSize: "28px", color: "var(--text-primary)", fontFamily: "'Roboto Mono', monospace", margin: 0 }}>typing speed test</h1>
             </div>
             <div style={{ fontSize: "14px", color: "var(--text-muted)", letterSpacing: "2px", textTransform: "uppercase", fontFamily: "'Inter', sans-serif", marginBottom: "32px" }}>typingspeedtest.live</div>
             

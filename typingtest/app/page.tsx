@@ -2,13 +2,19 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation"; 
+import dynamic from "next/dynamic";
 import Header from "./components/Header";
 import StatsBar from "./components/StatsBar";
 import TypingBox, { TypingBoxHandle } from "./components/TypingBox";
-import ResultModal from "./components/ResultModal";
 import LeaderboardModal from "./components/LeaderboardModal";
 import { generateWords } from "../lib/words";
 import { useStats } from "../hooks/useStats";
+
+// Lazy load the heavy chart component to improve initial page load speed
+const ResultModal = dynamic(() => import("./components/ResultModal"), { 
+  ssr: false,
+  loading: () => <div style={{ padding: "40px", textAlign: "center", color: "var(--text-muted)" }}>Loading results...</div>
+});
 
 type Mode = "time" | "words";
 type TimeOption = number; 
@@ -237,7 +243,7 @@ export default function Home() {
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "var(--bg)", transition: "background var(--transition-slow)" }}>
-      <h1 style={{ display: "none" }}>Free Typing Speed Test — Measure Your WPM and Accuracy Online</h1>
+      <h1 style={{ position: "absolute", width: "1px", height: "1px", padding: 0, margin: "-1px", overflow: "hidden", clip: "rect(0, 0, 0, 0)", whiteSpace: "nowrap", borderWidth: 0 }}>Free Typing Speed Test Measure Your WPM and Accuracy Online</h1>
       <div style={{ opacity: isActive ? 0 : 1, transition: "opacity 0.4s ease", pointerEvents: isActive ? "none" : "auto" }}>
         <Header mode={mode} timeOption={timeOption} wordOption={wordOption} onModeChange={handleModeChange} onTimeOptionChange={handleTimeOptionChange} onWordOptionChange={handleWordOptionChange} disabled={isActive} streak={streak} onLeaderboardClick={() => setIsLeaderboardOpen(true)} />
       </div>

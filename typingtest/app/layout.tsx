@@ -5,7 +5,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   metadataBase: new URL("https://typingspeedtest.live"),
   title: "Free Typing Speed Test — Check Your WPM Online",
-  description: "Take a free typing speed test and instantly see your WPM (words per minute) and accuracy score. No sign-up needed. Choose 15-second, 30-second, 1-minute or 2-minute modes, track your daily streak, and compete on the global leaderboard.",
+  description: "Check your WPM and accuracy with our free typing speed test. No sign-up needed! Track daily streaks, try multiple modes, and compete globally.",
   keywords: [
     "typing speed test",
     "wpm test",
